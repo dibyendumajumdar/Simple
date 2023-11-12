@@ -381,60 +381,6 @@ public abstract class Node {
      */
     public static void reset() { UNIQUE_ID = 1; }
 
-    static class State {
-        int preorder;
-        int rpostorder;
-
-        Map<Integer, NodeState> nodeState = new HashMap<>();
-
-        public State(int preorder, int rpostorder) {
-            this.preorder = preorder;
-            this.rpostorder = rpostorder;
-        }
-    }
-
-    static class NodeState {
-        int pre;
-        int rpost;
-
-        Node n;
-
-        public NodeState(int pre, Node n) {
-            this.pre = pre;
-            this.n = n;
-        }
-    }
-
-    public static List<Node> walk(Node root)
-    {
-        State state = new State(1, Integer.MAX_VALUE);
-        DFS_classify(root, state);
-        return state.nodeState.values().stream().sorted((a,b)->a.rpost-b.rpost).map(n->n.n).collect(Collectors.toList());
-    }
-
-    static void DFS_classify(Node n, State state)
-    {
-        assert n != null;
-
-        NodeState nodeState = new NodeState(state.preorder, n);
-        state.nodeState.put(n._nid, nodeState);
-        state.preorder++;
-
-        /* For each successor node */
-        for (int i = 0; i < n.nOuts(); i++) {
-            Node S = n.out(i);
-            if (S == null || !S.isCFG())
-                continue;
-            NodeState ss = state.nodeState.get(S._nid);
-            if (ss == null)
-                DFS_classify(S, state);
-        }
-
-        nodeState.rpost = state.rpostorder;
-        System.out.println(String.format("Node %d RPO %d\n", n._nid-1, nodeState.rpost));
-        state.rpostorder--;
-    }
-
     public void dfs(List<Node> nodes, Set<Integer> visited) {
         if (!isCFG()) return;
         visited.add(_nid);
