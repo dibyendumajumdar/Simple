@@ -35,7 +35,7 @@ public class DominatorTest {
     public void testDominatorTree() {
         List<Node> nodes = new ArrayList<>();
         RegionNode root = makeGraph(nodes);
-        DominatorTree tree = new DominatorTree(root);
+        DominatorTree tree = new DominatorTree(root, Node.rpo(root));
         int[] expectedIdoms = {0,1,1,2,2,4,2,6,6,6};
         for (Node n: nodes) {
             Assert.assertEquals(expectedIdoms[n._nid], tree.idom(n)._nid);

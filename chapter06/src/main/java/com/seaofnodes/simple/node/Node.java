@@ -109,6 +109,9 @@ public abstract class Node {
 
     public int nIns() { return _inputs.size(); }
 
+    /** number of control inputs */
+    public int nCtrlIns() { return (int) _inputs.stream().filter(n -> n!=null && n.isCFG()).count(); }
+
     public int nOuts() { return _outputs.size(); }
 
     public boolean isUnused() { return nOuts() == 0; }
