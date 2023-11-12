@@ -435,5 +435,23 @@ public abstract class Node {
         state.rpostorder--;
     }
 
+    public void dfs(List<Node> nodes, Set<Integer> visited) {
+        if (!isCFG()) return;
+        visited.add(_nid);
+        /* For each successor node */
+        for (int i = 0; i < nOuts(); i++) {
+            Node S = out(i);
+            if (S == null || !S.isCFG())
+                continue;
+            if (!visited.contains(S._nid))
+                S.dfs(nodes, visited);
+        }
+        nodes.add(0, this);
+    }
 
+    public static List<Node> rpo(Node root) {
+        List<Node> nodes = new ArrayList<>();
+        root.dfs(nodes, new HashSet<>());
+        return nodes;
+    }
 }

@@ -17,6 +17,7 @@ public class DominatorTree {
     public DominatorTree(Node root) {
         _root = root;
         _nodes = Node.walk(root);
+        List<Node> nodes = Node.rpo(root);
         for (int i = 0; i < _nodes.size(); i++)
             _rpo.put(_nodes.get(i)._nid, i+1);
 
