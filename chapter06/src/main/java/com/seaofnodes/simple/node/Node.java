@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -381,7 +382,7 @@ public abstract class Node {
      */
     public static void reset() { UNIQUE_ID = 1; }
 
-    public void dfs(List<Node> nodes, Set<Integer> visited) {
+    void dfs(Consumer<Node> consumer, Set<Integer> visited) {
         if (!isCFG()) return;
         visited.add(_nid);
         /* For each successor node */
@@ -390,14 +391,20 @@ public abstract class Node {
             if (S == null || !S.isCFG())
                 continue;
             if (!visited.contains(S._nid))
-                S.dfs(nodes, visited);
+                S.dfs(consumer, visited);
         }
-        nodes.add(0, this);
+        consumer.accept(this);
     }
 
+    /**
+     * Creates a reverse post order list of CFG nodes
+
+     * @param root The starting CFG node, typically START
+     * @return
+     */
     public static List<Node> rpo(Node root) {
         List<Node> nodes = new ArrayList<>();
-        root.dfs(nodes, new HashSet<>());
+        root.dfs((n)->nodes.add(0,n), new HashSet<>());
         return nodes;
     }
 }
