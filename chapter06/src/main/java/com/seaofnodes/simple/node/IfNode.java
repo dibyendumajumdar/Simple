@@ -1,5 +1,7 @@
 package com.seaofnodes.simple.node;
 
+import com.seaofnodes.simple.DominatorTree;
+import com.seaofnodes.simple.Parser;
 import com.seaofnodes.simple.type.Type;
 import com.seaofnodes.simple.type.TypeInteger;
 import com.seaofnodes.simple.type.TypeTuple;
@@ -33,6 +35,18 @@ public class IfNode extends MultiNode {
         if (pred()._type instanceof TypeInteger ti && ti.isConstant()) {
             if (ti.value() == 0)          return TypeTuple.IF_FALSE;
             else                          return TypeTuple.IF_TRUE;
+        }
+        DominatorTree tree = new DominatorTree(Parser.START, Node.rpo(Parser.START));
+        Node d = tree.idom(this);
+        while (d != Parser.START) {
+            if (d instanceof ProjNode proj &&
+                    proj.ctrl() instanceof IfNode ifNode) {
+                if (pred() == ifNode.pred()) {
+                    if (proj._idx == 0) return TypeTuple.IF_TRUE;
+                    else return TypeTuple.IF_FALSE;
+                }
+            }
+            d = tree.idom(d);
         }
         return TypeTuple.IF_BOTH;
     }
