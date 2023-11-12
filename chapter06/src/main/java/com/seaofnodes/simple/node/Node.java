@@ -4,6 +4,7 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * All Nodes in the Sea of Nodes IR inherit from the Node class.
@@ -102,6 +103,8 @@ public abstract class Node {
      * @return Input node or null
      */
     public Node in(int i) { return _inputs.get(i); }
+
+    public Node out(int i) { return _outputs.get(i); }
 
     public int nIns() { return _inputs.size(); }
 
@@ -226,7 +229,7 @@ public abstract class Node {
      * @param new_def the new definition, appended to the end of existing definitions
      * @return new_def for flow coding
      */
-    Node add_def(Node new_def) {
+    public Node add_def(Node new_def) {
         // Add use->def edge
         _inputs.add(new_def);
         // If new def is not null, add the corresponding def->use edge
@@ -377,4 +380,60 @@ public abstract class Node {
      * Node unique id generator, and is done as part of making a new Parser.
      */
     public static void reset() { UNIQUE_ID = 1; }
+
+    static class State {
+        int preorder;
+        int rpostorder;
+
+        Map<Integer, NodeState> nodeState = new HashMap<>();
+
+        public State(int preorder, int rpostorder) {
+            this.preorder = preorder;
+            this.rpostorder = rpostorder;
+        }
+    }
+
+    static class NodeState {
+        int pre;
+        int rpost;
+
+        Node n;
+
+        public NodeState(int pre, Node n) {
+            this.pre = pre;
+            this.n = n;
+        }
+    }
+
+    public static List<Node> walk(Node root)
+    {
+        State state = new State(1, Integer.MAX_VALUE);
+        DFS_classify(root, state);
+        return state.nodeState.values().stream().sorted((a,b)->a.rpost-b.rpost).map(n->n.n).collect(Collectors.toList());
+    }
+
+    static void DFS_classify(Node n, State state)
+    {
+        assert n != null;
+
+        NodeState nodeState = new NodeState(state.preorder, n);
+        state.nodeState.put(n._nid, nodeState);
+        state.preorder++;
+
+        /* For each successor node */
+        for (int i = 0; i < n.nOuts(); i++) {
+            Node S = n.out(i);
+            if (S == null || !S.isCFG())
+                continue;
+            NodeState ss = state.nodeState.get(S._nid);
+            if (ss == null)
+                DFS_classify(S, state);
+        }
+
+        nodeState.rpost = state.rpostorder;
+        System.out.println(String.format("Node %d RPO %d\n", n._nid-1, nodeState.rpost));
+        state.rpostorder--;
+    }
+
+
 }
