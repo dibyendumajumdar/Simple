@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.linear;
 
 import com.seaofnodes.simple.node.Node;
 
@@ -7,8 +7,8 @@ import java.util.stream.Collectors;
 
 public class GCM {
 
-    static class LoopNest {
-        Node _loopHead;
+    public static class LoopNest {
+        public Node _loopHead;
         Set<Node> _nodes;
 
         public LoopNest(Node loopHead) {

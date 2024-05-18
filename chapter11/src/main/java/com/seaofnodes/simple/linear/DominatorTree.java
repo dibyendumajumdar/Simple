@@ -1,4 +1,4 @@
-package com.seaofnodes.simple;
+package com.seaofnodes.simple.linear;
 
 import com.seaofnodes.simple.node.Node;
 
