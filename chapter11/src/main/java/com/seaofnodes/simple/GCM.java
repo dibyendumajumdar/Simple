@@ -3,6 +3,7 @@ package com.seaofnodes.simple;
 import com.seaofnodes.simple.node.Node;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class GCM {
 
@@ -58,9 +59,23 @@ public class GCM {
         return list;
     }
 
+    public List<LoopNest> mergeLoopsWithSameHead(List<LoopNest> loopNests) {
+        HashMap<Integer, LoopNest> map = new HashMap<>();
+        for (LoopNest loopNest: loopNests) {
+            LoopNest sameHead = map.get(loopNest._loopHead._nid);
+            if (sameHead == null) map.put(loopNest._loopHead._nid, loopNest);
+            else {
+                sameHead._nodes.addAll(loopNest._nodes);
+            }
+        }
+        return map.values().stream().collect(Collectors.toList());
+    }
+
+
     public void schedule(Node root) {
         DominatorTree tree = new DominatorTree(root);
         List<LoopNest> naturalLoops = findLoops(tree._cfgNodes);
+        List<LoopNest> loops = mergeLoopsWithSameHead(naturalLoops);
     }
 
 }

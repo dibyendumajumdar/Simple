@@ -30,10 +30,6 @@ public class DominatorTree {
     public DominatorTree(Node root) {
         _root = root;
         _cfgNodes = getControlNodes(root);
-        for (int i = 0; i < _cfgNodes.size(); i++) {
-            Node n = _cfgNodes.get(i);
-            n.resetDomInfo();
-        }
         calculateDominatorTree();
         populateTree();
         setDepth();
@@ -107,8 +103,7 @@ public class DominatorTree {
      * such predecessor.
      */
     private Node findFirstPredecessorWithIdom(Node n) {
-        for (int i = 0; i < n.nIns(); i++) {
-            Node p = n.in(i);
+        for (Node p: n._inputs) {
             if (p == null || !p.isCFG()) continue;
             if (p._idom != null) return p;
         }
@@ -119,12 +114,9 @@ public class DominatorTree {
     private void computeRPO(Node n)
     {
         n._pre = _preorder++;
-        for (int i = 0; i < n.nOuts(); i++) {
-            Node s = n.out(i);
-            if (s == null || !s.isCFG())
-                continue;
-            if (s._pre == 0)
-                computeRPO(s);
+        for (Node s: n._outputs) {
+            if (s == null || !s.isCFG()) continue;
+            if (s._pre == 0) computeRPO(s);
         }
         n._rpost = _rpostorder--;
     }
@@ -133,10 +125,7 @@ public class DominatorTree {
     {
         _preorder = 1;
         _rpostorder = _cfgNodes.size();
-
-        for (int i = 0; i < _cfgNodes.size(); i++) {
-            _cfgNodes.get(i).resetRPO();
-        }
+        for (Node n: _cfgNodes) n.resetRPO();
         computeRPO(_root);
     }
 
@@ -147,9 +136,7 @@ public class DominatorTree {
 
     private void calculateDominatorTree()
     {
-        for (int i = 0; i < _cfgNodes.size(); i++) {
-            _cfgNodes.get(i).resetDomInfo();
-        }
+        for (Node n: _cfgNodes) n.resetDomInfo();
         computeRPO();
         sortByRPO();
 
