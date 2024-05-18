@@ -352,6 +352,7 @@ public class Scheduler {
     private void doBuildCTF(StartNode start) {
         var queue = new Stack<NodeData>();
         var phiQueue = new Stack<NodeData>();
+        List<BasicBlock> blocks = new ArrayList<>();
         queue.push(d(start));
         int depth = 0;
         while (!queue.isEmpty()) {
@@ -362,9 +363,11 @@ public class Scheduler {
             switch (node) {
                 case StartNode s:
                     block = new BasicBlock(s, depth++);
+                    blocks.add(block);
                     break;
                 case LoopNode l:
                     block = new BasicBlock(l, depth++, d(l.in(1)).block);
+                    blocks.add(block);
                     break;
                 case RegionNode r:
                     var prev = new ArrayList<BasicBlock>();
@@ -372,6 +375,7 @@ public class Scheduler {
                         od(r.in(i)).ifPresent(d->prev.add(d.block));
                     }
                     block = new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
+                    blocks.add(block);
                     break;
                 case IfNode i:
                     block = d(i.in(0)).block;
@@ -381,6 +385,8 @@ public class Scheduler {
                     break;
                 default:
                     block = new BasicBlock(node, depth++, d(node.in(0)).block);
+                    blocks.add(block);
+                    break;
             }
             data.block = block;
             if (node instanceof RegionNode r) {

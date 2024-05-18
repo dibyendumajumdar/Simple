@@ -627,48 +627,9 @@ public abstract class Node {
         return walk( n -> n._nid==nid ? n : null );
     }
 
-    //////////////// Some fields to support dominator calculations /////////////////////
-    // These are updated by DominatorTree
-
-    /**
-     * Immediate dominator
-     */
-    public Node _idom;
-    public int _domdepth;
-    /**
-     * Index number when traversing pre order,
-     * only set on CFG Nodes
-     */
-    public int _pre;
-    /**
-     * Index number when traversing reverse post order,
-     * only set on CFG Nodes
-     */
-    public int _rpost;
-    /**
-     * Nodes who have this node as immediate dominator,
-     * thus the dominator tree.
-     */
-    public List<Node> _dominated = new ArrayList<>();
-    public Set<Node> _frontier = new HashSet<>();
-
-    public void resetDomInfo() {
-        _domdepth = 0;
-        _idom = null;
-        _dominated.clear();
-    }
-    public void resetRPO() {
-        _pre = 0;
-        _rpost = 0;
+    //
+    public Node getBlockStart() {
+        return null;
     }
 
-    public boolean dominates(Node other)
-    {
-        if (this == other) return true;
-        while (other._domdepth > _domdepth)
-            other = other._idom;
-        return this == other;
-    }
-
-    /////////////////// End of dominator calculations //////////////////////////////////
 }

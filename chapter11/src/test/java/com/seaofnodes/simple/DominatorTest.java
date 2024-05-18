@@ -1,7 +1,8 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.node.Node;
-import com.seaofnodes.simple.node.RegionNode;
+import com.seaofnodes.simple.linear.BasicBlock;
+import com.seaofnodes.simple.linear.DominatorTree;
+import com.seaofnodes.simple.linear.GCM;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -10,67 +11,68 @@ import java.util.List;
 
 public class DominatorTest {
 
-    RegionNode add(List<Node> nodes, RegionNode node) {
+    BasicBlock add(List<BasicBlock> nodes, BasicBlock node) {
         nodes.add(node);
         return node;
     }
 
-    RegionNode makeGraph(List<Node> nodes) {
-        RegionNode r0 = add(nodes, new RegionNode());
-        RegionNode r1 = add(nodes, new RegionNode(r0));
-        RegionNode r2 = add(nodes, new RegionNode(r1));
-        RegionNode r3 = add(nodes, new RegionNode(r2));
-        RegionNode r4 = add(nodes, new RegionNode(r3));
-        RegionNode r5 = add(nodes, new RegionNode(r1));
-        RegionNode r6 = add(nodes, new RegionNode(r5));
-        RegionNode r7 = add(nodes, new RegionNode(r6));
-        RegionNode r8 = add(nodes, new RegionNode(r5));
-        r7.addDef(r8);
-        r3.addDef(r7);
-        r1.addDef(r3);
+    BasicBlock makeGraph(List<BasicBlock> nodes) {
+        BasicBlock r0 = add(nodes, new BasicBlock(1));
+        BasicBlock r1 = add(nodes, new BasicBlock(2, r0));
+        BasicBlock r2 = add(nodes, new BasicBlock(3, r1));
+        BasicBlock r3 = add(nodes, new BasicBlock(4, r2));
+        BasicBlock r4 = add(nodes, new BasicBlock(5, r3));
+        BasicBlock r5 = add(nodes, new BasicBlock(6, r1));
+        BasicBlock r6 = add(nodes, new BasicBlock(7, r5));
+        BasicBlock r7 = add(nodes, new BasicBlock(8, r6));
+        BasicBlock r8 = add(nodes, new BasicBlock(9, r5));
+        r7.addPredecessor(r8);
+        r3.addPredecessor(r7);
+        r1.addPredecessor(r3);
         return r0;
     }
 
     @Test
     public void testDominatorTree() {
-        List<Node> nodes = new ArrayList<>();
-        RegionNode root = makeGraph(nodes);
+        List<BasicBlock> nodes = new ArrayList<>();
+        BasicBlock root = makeGraph(nodes);
         DominatorTree tree = new DominatorTree(root);
-        int[] expectedIdoms = {0,1,1,2,2,4,2,6,6,6};
-        for (Node n: nodes) {
-            Assert.assertEquals(expectedIdoms[n._nid], n._idom._nid);
+        System.out.println(tree.generateDotOutput());
+        long[] expectedIdoms = {0,1,1,2,2,4,2,6,6,6};
+        for (BasicBlock n: nodes) {
+            Assert.assertEquals(expectedIdoms[(int)n._bid], n._idom._bid);
         }
     }
 
-    RegionNode makeGraph2(List<Node> nodes) {
+    BasicBlock makeGraph2(List<BasicBlock> nodes) {
 
-        RegionNode r1 = add(nodes, new RegionNode());
-        RegionNode r2 = add(nodes, new RegionNode(r1));
-        RegionNode r3 = add(nodes, new RegionNode(r2, null));
-        RegionNode r4 = add(nodes, new RegionNode(r2));
-        RegionNode r5 = add(nodes, new RegionNode(r4));
-        RegionNode r6 = add(nodes, new RegionNode(r4));
-        RegionNode r7 = add(nodes, new RegionNode(r5, r6));
-        RegionNode r8 = add(nodes, new RegionNode(r5));
-        RegionNode r9 = add(nodes, new RegionNode(r8));
-        RegionNode r10 = add(nodes, new RegionNode(r9));
-        RegionNode r11 = add(nodes, new RegionNode(r7));
-        RegionNode r12 = add(nodes, new RegionNode(r10, r11));
+        BasicBlock r1 = add(nodes, new BasicBlock(1));
+        BasicBlock r2 = add(nodes, new BasicBlock(2, r1));
+        BasicBlock r3 = add(nodes, new BasicBlock(3, r2));
+        BasicBlock r4 = add(nodes, new BasicBlock(4, r2));
+        BasicBlock r5 = add(nodes, new BasicBlock(5, r4));
+        BasicBlock r6 = add(nodes, new BasicBlock(6, r4));
+        BasicBlock r7 = add(nodes, new BasicBlock(7, r5, r6));
+        BasicBlock r8 = add(nodes, new BasicBlock(8, r5));
+        BasicBlock r9 = add(nodes, new BasicBlock(9, r8));
+        BasicBlock r10 = add(nodes, new BasicBlock(10, r9));
+        BasicBlock r11 = add(nodes, new BasicBlock(11, r7));
+        BasicBlock r12 = add(nodes, new BasicBlock(12, r10, r11));
 
-        r2.addDef(r3);
-        r2.addDef(r4);
-        r5.addDef(r10);
-        r8.addDef(r9);
+        r2.addPredecessor(r3);
+        r2.addPredecessor(r4);
+        r5.addPredecessor(r10);
+        r8.addPredecessor(r9);
         return r1;
     }
 
-    public String generateDotOutput(List<Node> nodes) {
+    public String generateDotOutput(List<BasicBlock> nodes) {
         StringBuilder sb = new StringBuilder();
         sb.append("digraph g {\n");
-        for (Node n: nodes)
+        for (BasicBlock n: nodes)
             sb.append(n.uniqueName()).append(";\n");
-        for (Node n: nodes) {
-            for (Node use: n._outputs) {
+        for (BasicBlock n: nodes) {
+            for (BasicBlock use: n._successors) {
                 sb.append(n.uniqueName()).append("->").append(use.uniqueName()).append(";\n");
             }
         }
@@ -80,16 +82,16 @@ public class DominatorTest {
 
     @Test
     public void testLoopNests() {
-        List<Node> nodes = new ArrayList<>();
-        RegionNode root = makeGraph2(nodes);
+        List<BasicBlock> nodes = new ArrayList<>();
+        BasicBlock root = makeGraph2(nodes);
         System.out.println(generateDotOutput(nodes));
         DominatorTree tree = new DominatorTree(root);
         GCM gcm = new GCM();
         List<GCM.LoopNest> loopNests = gcm.findLoops(nodes);
-        Assert.assertEquals(2, loopNests.get(0)._loopHead._nid);
-        Assert.assertEquals(2, loopNests.get(1)._loopHead._nid);
-        Assert.assertEquals(5, loopNests.get(2)._loopHead._nid);
-        Assert.assertEquals(8, loopNests.get(3)._loopHead._nid);
+        Assert.assertEquals(2, loopNests.get(0)._loopHead._bid);
+        Assert.assertEquals(2, loopNests.get(1)._loopHead._bid);
+        Assert.assertEquals(5, loopNests.get(2)._loopHead._bid);
+        Assert.assertEquals(8, loopNests.get(3)._loopHead._bid);
         List<GCM.LoopNest> loops = gcm.mergeLoopsWithSameHead(loopNests);
         return;
     }

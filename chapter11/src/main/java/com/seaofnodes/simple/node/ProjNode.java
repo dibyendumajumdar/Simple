@@ -59,4 +59,10 @@ public class ProjNode extends Node {
 
     @Override
     int hash() { return _idx; }
+
+    @Override
+    public Node getBlockStart() {
+        if (ctrl() instanceof IfNode) return this;
+        return ctrl().getBlockStart();
+    }
 }

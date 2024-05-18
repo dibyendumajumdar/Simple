@@ -1,6 +1,10 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
+import com.seaofnodes.simple.linear.BasicBlock;
+import com.seaofnodes.simple.linear.CFGBuilder;
+import com.seaofnodes.simple.linear.DominatorTree;
+import com.seaofnodes.simple.linear.GCM;
 import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Assert;
@@ -9,6 +13,21 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 public class Chapter11Test {
+
+    @Test
+    public void testEndlessLoop() {
+        Parser parser = new Parser ("""
+                if (arg) while(1) {}
+                return 0;
+                """
+        );
+        StopNode stop = parser.parse(true).iterate(true);
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput());
+        DominatorTree tree = new DominatorTree(cfg._root);
+        System.out.println(tree.generateDotOutput());
+    }
 
     @Test
     public void testDomTree() {
@@ -52,27 +71,30 @@ while (i <= arg) {
 return primeCount;
 """);
         StopNode stop = parser.parse(true).iterate(true);
-        DominatorTree tree = new DominatorTree(Parser.START);
-        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-        System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         var eval = new Evaluator(stop);
         assertEquals(Long.valueOf(4), eval.evaluate(10, 100));
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput());
+        DominatorTree tree = new DominatorTree(cfg._root);
+//        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
+//        System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         System.out.println(tree.generateDotOutput());
-
-        Node a = stop.find(2);
-        Assert.assertTrue(a.dominates(stop));
-        Assert.assertFalse(stop.dominates(a));
-        a = stop.find(4);
-        Assert.assertTrue(a.dominates(stop));
-        Assert.assertFalse(stop.dominates(a));
-        a = stop.find(8);
-        Assert.assertTrue(a.dominates(stop));
-        Assert.assertFalse(stop.dominates(a));
-        a = stop.find(9);
-        Assert.assertFalse(a.dominates(stop));
-        Assert.assertFalse(stop.dominates(a));
-        GCM gcm = new GCM();
-        gcm.schedule(stop.find(2));
+//
+//        Node a = stop.find(2);
+//        Assert.assertTrue(a.dominates(stop));
+//        Assert.assertFalse(stop.dominates(a));
+//        a = stop.find(4);
+//        Assert.assertTrue(a.dominates(stop));
+//        Assert.assertFalse(stop.dominates(a));
+//        a = stop.find(8);
+//        Assert.assertTrue(a.dominates(stop));
+//        Assert.assertFalse(stop.dominates(a));
+//        a = stop.find(9);
+//        Assert.assertFalse(a.dominates(stop));
+//        Assert.assertFalse(stop.dominates(a));
+//        GCM gcm = new GCM();
+//        gcm.schedule(stop.find(2));
     }
 
 

@@ -59,4 +59,9 @@ public class IfNode extends MultiNode {
                 }
         return null;
     }
+
+    @Override
+    public Node getBlockStart() {
+        return ctrl().getBlockStart();
+    }
 }

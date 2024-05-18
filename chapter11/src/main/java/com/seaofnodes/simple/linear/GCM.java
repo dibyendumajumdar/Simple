@@ -1,23 +1,21 @@
 package com.seaofnodes.simple.linear;
 
-import com.seaofnodes.simple.node.Node;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class GCM {
 
     public static class LoopNest {
-        public Node _loopHead;
-        Set<Node> _nodes;
+        public BasicBlock _loopHead;
+        Set<BasicBlock> _nodes;
 
-        public LoopNest(Node loopHead) {
+        public LoopNest(BasicBlock loopHead) {
             _loopHead = loopHead;
             _nodes = new HashSet<>();
             _nodes.add(loopHead);
         }
 
-        public void insert(Node m, Stack<Node> stack) {
+        public void insert(BasicBlock m, Stack<BasicBlock> stack) {
             if (!_nodes.contains(m)) {
                 _nodes.add(m);
                 stack.push(m);
@@ -28,28 +26,24 @@ public class GCM {
     // Based on Compilers: Principles, Techniques and Tools
     // p 604
     // 1986 ed
-    public LoopNest getNaturalLoop(Node head, Node backedge) {
-        Stack<Node> stack = new Stack<>();
+    public LoopNest getNaturalLoop(BasicBlock head, BasicBlock backedge) {
+        Stack<BasicBlock> stack = new Stack<>();
         LoopNest loop = new LoopNest(head);
         loop.insert(backedge, stack);
         // trace back up from backedge to head
         while (!stack.isEmpty()) {
-            Node m = stack.pop();
-            for (Node pred : m._inputs) {
-                // Assume we only need CFG nodes
-                if (pred == null || !pred.isCFG()) continue;
+            BasicBlock m = stack.pop();
+            for (BasicBlock pred : m._predecessors) {
                 loop.insert(pred, stack);
             }
         }
         return loop;
     }
 
-    public List<LoopNest> findLoops(List<Node> nodes) {
+    public List<LoopNest> findLoops(List<BasicBlock> nodes) {
         List<LoopNest> list = new ArrayList<>();
-        for (Node n : nodes) {
-            assert n.isCFG();
-            for (Node input : n._inputs) {
-                if (input == null || !input.isCFG()) continue;
+        for (BasicBlock n : nodes) {
+            for (BasicBlock input : n._predecessors) {
                 if (n.dominates(input)) {
                     System.out.println("Found loop head at " + n);
                     list.add(getNaturalLoop(n, input));
@@ -60,10 +54,10 @@ public class GCM {
     }
 
     public List<LoopNest> mergeLoopsWithSameHead(List<LoopNest> loopNests) {
-        HashMap<Integer, LoopNest> map = new HashMap<>();
+        HashMap<Long, LoopNest> map = new HashMap<>();
         for (LoopNest loopNest: loopNests) {
-            LoopNest sameHead = map.get(loopNest._loopHead._nid);
-            if (sameHead == null) map.put(loopNest._loopHead._nid, loopNest);
+            LoopNest sameHead = map.get(loopNest._loopHead._bid);
+            if (sameHead == null) map.put(loopNest._loopHead._bid, loopNest);
             else {
                 sameHead._nodes.addAll(loopNest._nodes);
             }
@@ -72,9 +66,9 @@ public class GCM {
     }
 
 
-    public void schedule(Node root) {
+    public void schedule(BasicBlock root) {
         DominatorTree tree = new DominatorTree(root);
-        List<LoopNest> naturalLoops = findLoops(tree._cfgNodes);
+        List<LoopNest> naturalLoops = findLoops(tree._blocks);
         List<LoopNest> loops = mergeLoopsWithSameHead(naturalLoops);
     }
 
