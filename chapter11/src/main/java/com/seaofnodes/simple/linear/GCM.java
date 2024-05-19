@@ -20,6 +20,7 @@ public class GCM {
         List<LoopNest> naturalLoops = LoopFinder.findLoops(tree._blocks);
         List<LoopNest> loops = LoopFinder.mergeLoopsWithSameHead(naturalLoops);
         LoopFinder.buildLoopTree(loops);
+        System.out.println(LoopNest.generateDotOutput(loops));
         LoopFinder.annotateBasicBlocks(loops);
     }
 

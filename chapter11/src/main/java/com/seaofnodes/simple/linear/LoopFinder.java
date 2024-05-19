@@ -46,7 +46,7 @@ public class LoopFinder {
         return map.values().stream().collect(Collectors.toList());
     }
 
-    public static void buildLoopTree(List<LoopNest> loopNests) {
+    public static LoopNest buildLoopTree(List<LoopNest> loopNests) {
         for (LoopNest nest1 : loopNests) {
             for (LoopNest nest2 : loopNests) {
                 boolean isNested = nest1.contains(nest2);
@@ -56,10 +56,16 @@ public class LoopFinder {
                 }
             }
         }
+        LoopNest top = null;
+        for (LoopNest nest : loopNests) {
+            if (nest._parent != null) nest._parent._children.add(nest);
+            else top = nest._parent;
+        }
+        return top;
     }
 
     public static void annotateBasicBlocks(List<LoopNest> loops) {
-        var sortedByDepth = loops.stream().sorted(Collections.reverseOrder(Comparator.comparingLong(n->n._loopHead._domDepth))).toList();
+        var sortedByDepth = loops.stream().sorted(Collections.reverseOrder(Comparator.comparingLong(n -> n._loopHead._domDepth))).toList();
         return;
     }
 }
