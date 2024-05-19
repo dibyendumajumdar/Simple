@@ -8,19 +8,48 @@ public class BasicBlock {
     public final long _bid;
     public List<BasicBlock> _successors = new ArrayList<>(); // successors
     List<BasicBlock> _predecessors = new ArrayList<>();
+
+    /**
+     * The preorder traversal number, also acts as a flag indicating whether the
+     * BB is yet to be visited (_pre==0 means not yet visited).
+     */
     int _pre;
+    /**
+     * The depth of the BB in the dominator tree
+     */
     int _domDepth;
-    int _rpost;
+    /**
+     * Reverse post order traversal number;
+     * Sort node list in ascending order by this to traverse graph in reverse post order.
+     * In RPO order if an edge exists from A to B we visit A followed by B, but cycles have to
+     * be dealt with in another way.
+     */
+    int _rpo;
+    /**
+     * Immediate dominator is the closest strict dominator.
+     * @see DominatorTree
+     */
     public BasicBlock _idom;
 
+    /**
+     * Initial starting Node in this BB;
+     * TBD whether we keep this
+     */
     Node _start;
+    /**
+     * Initial ending node in this BB;
+     * TBC whether we keep this
+     */
     Node _end;
 
     /**
-     * Nodes who have this node as immediate dominator,
+     * Nodes for whom this node is the immediate dominator,
      * thus the dominator tree.
      */
     public List<BasicBlock> _dominated = new ArrayList<>();
+    /**
+     * Dominance frontier
+     */
     public Set<BasicBlock> _frontier = new HashSet<>();
 
 
@@ -77,11 +106,12 @@ public class BasicBlock {
         _domDepth = 0;
         _idom = null;
         _dominated.clear();
+        _frontier.clear();
     }
 
     public void resetRPO() {
         _pre = 0;
-        _rpost = 0;
+        _rpo = 0;
     }
 
     public boolean dominates(BasicBlock other) {

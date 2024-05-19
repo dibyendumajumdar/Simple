@@ -1,8 +1,6 @@
 package com.seaofnodes.simple;
 
-import com.seaofnodes.simple.linear.BasicBlock;
-import com.seaofnodes.simple.linear.DominatorTree;
-import com.seaofnodes.simple.linear.GCM;
+import com.seaofnodes.simple.linear.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -87,12 +85,12 @@ public class DominatorTest {
         System.out.println(generateDotOutput(nodes));
         DominatorTree tree = new DominatorTree(root);
         GCM gcm = new GCM();
-        List<GCM.LoopNest> loopNests = gcm.findLoops(nodes);
+        List<LoopNest> loopNests = LoopFinder.findLoops(nodes);
         Assert.assertEquals(2, loopNests.get(0)._loopHead._bid);
         Assert.assertEquals(2, loopNests.get(1)._loopHead._bid);
         Assert.assertEquals(5, loopNests.get(2)._loopHead._bid);
         Assert.assertEquals(8, loopNests.get(3)._loopHead._bid);
-        List<GCM.LoopNest> loops = gcm.mergeLoopsWithSameHead(loopNests);
+        List<LoopNest> loops = LoopFinder.mergeLoopsWithSameHead(loopNests);
         return;
     }
 

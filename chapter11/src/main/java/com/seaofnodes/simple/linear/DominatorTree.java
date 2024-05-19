@@ -14,10 +14,9 @@ import java.util.function.Consumer;
  * Dominance Algorithm' by Keith D. Cooper, Timothy J. Harvey and
  * Ken Kennedy.
  */
-
 public class DominatorTree {
-    BasicBlock _root;
-    // List of CFG nodes reachable from root
+    BasicBlock _entry;
+    // List of basic blocks reachable from _entry block, including the _entry
     List<BasicBlock> _blocks;
 
     int _preorder;
@@ -26,17 +25,21 @@ public class DominatorTree {
     /**
      * Builds a Dominator Tree.
      *
-     * @param root The root node
+     * @param entry The entry block
      */
-    public DominatorTree(BasicBlock root) {
-        _root = root;
-        _blocks = getControlNodes(root);
+    public DominatorTree(BasicBlock entry) {
+        _entry = entry;
+        _blocks = findAllBlocks(entry);
         calculateDominatorTree();
         populateTree();
         setDepth();
         calculateDominanceFrontiers();
     }
 
+    /**
+     * Setup the dominator tree.
+     * Each block gets the list of blocks it strictly dominates.
+     */
     private void populateTree() {
         for (BasicBlock n : _blocks) {
             BasicBlock idom = n._idom;
@@ -47,6 +50,9 @@ public class DominatorTree {
         }
     }
 
+    /**
+     * Sets the dominator depth on each block
+     */
     private void setDepth_(BasicBlock n) {
         BasicBlock idom = n._idom;
         if (idom != n) {
@@ -60,17 +66,14 @@ public class DominatorTree {
             setDepth_(child);
     }
 
+    /**
+     * Sets the dominator depth on each block
+     */
     private void setDepth() {
-        _root._domDepth = 1;
-        setDepth_(_root);
+        _entry._domDepth = 1;
+        setDepth_(_entry);
     }
 
-    /**
-     * Gets the RPO number for a given node.
-     */
-    private int rpo(BasicBlock n) {
-        return n._rpost;
-    }
 
     /**
      * Finds nearest common ancestor
@@ -83,11 +86,11 @@ public class DominatorTree {
         BasicBlock finger1 = i;
         BasicBlock finger2 = j;
         while (finger1 != finger2) {
-            while (rpo(finger1) > rpo(finger2)) {
+            while (finger1._rpo > finger2._rpo) {
                 finger1 = finger1._idom;
                 assert finger1 != null;
             }
-            while (rpo(finger2) > rpo(finger1)) {
+            while (finger2._rpo > finger1._rpo) {
                 finger2 = finger2._idom;
                 assert finger2 != null;
             }
@@ -108,57 +111,66 @@ public class DominatorTree {
     }
 
     // compute rpo using a depth first search
-    private void computeRPO(BasicBlock n) {
+    private void postOrderWalkSetRPO(BasicBlock n) {
         n._pre = _preorder++;
         for (BasicBlock s : n._successors) {
-            if (s._pre == 0) computeRPO(s);
+            if (s._pre == 0) postOrderWalkSetRPO(s);
         }
-        n._rpost = _rpostorder--;
+        n._rpo = _rpostorder--;
     }
 
-    private void computeRPO() {
+    /**
+     * Assign rpo number to all the basic blocks.
+     * The rpo number defines the Reverse Post Order traversal of blocks.
+     * The Dominance calculator requires the rpo number.
+     */
+    private void annotateBlocksWithRPO() {
         _preorder = 1;
         _rpostorder = _blocks.size();
         for (BasicBlock n : _blocks) n.resetRPO();
-        computeRPO(_root);
+        postOrderWalkSetRPO(_entry);
     }
 
-    private void sortByRPO() {
-        _blocks.sort(Comparator.comparingInt(n -> n._rpost));
+    private void sortBlocksByRPO() {
+        _blocks.sort(Comparator.comparingInt(n -> n._rpo));
     }
 
     private void calculateDominatorTree() {
-        for (BasicBlock n : _blocks) n.resetDomInfo();
-        computeRPO();
-        sortByRPO();
+        resetDomInfo();
+        annotateBlocksWithRPO();
+        sortBlocksByRPO();
 
         // Set IDom entry for root to itself
-        _root._idom = _root;
+        _entry._idom = _entry;
         boolean changed = true;
         while (changed) {
             changed = false;
             // for all nodes, b, in reverse postorder (except root)
-            for (BasicBlock b : _blocks) {
-                if (b == _root) // skip root
+            for (BasicBlock bb : _blocks) {
+                if (bb == _entry) // skip root
                     continue;
                 // NewIDom = first (processed) predecessor of b, pick one
-                BasicBlock firstPred = findFirstPredecessorWithIdom(b);
+                BasicBlock firstPred = findFirstPredecessorWithIdom(bb);
                 assert firstPred != null;
                 BasicBlock newIDom = firstPred;
                 // for all other predecessors, p, of b
-                for (BasicBlock p : b._predecessors) {
-                    if (p == firstPred) continue; // all other predecessors
-                    if (p._idom != null) {
+                for (BasicBlock predecessor : bb._predecessors) {
+                    if (predecessor == firstPred) continue; // all other predecessors
+                    if (predecessor._idom != null) {
                         // i.e. IDoms[p] calculated
-                        newIDom = intersect(p, newIDom);
+                        newIDom = intersect(predecessor, newIDom);
                     }
                 }
-                if (b._idom != newIDom) {
-                    b._idom = newIDom;
+                if (bb._idom != newIDom) {
+                    bb._idom = newIDom;
                     changed = true;
                 }
             }
         }
+    }
+
+    private void resetDomInfo() {
+        for (BasicBlock bb : _blocks) bb.resetDomInfo();
     }
 
     /**
@@ -179,43 +191,35 @@ public class DominatorTree {
                     BasicBlock runner = p;
                     while (runner != b._idom) {
                         runner._frontier.add(b);
-                        BasicBlock prev = runner;
                         runner = runner._idom;
-                        if (runner == null)
-                            throw new RuntimeException();
                     }
                 }
             }
         }
     }
 
-    static void walkCFG(BasicBlock n, Consumer<BasicBlock> consumer, HashSet<BasicBlock> visited) {
+    static void postOrderWalk(BasicBlock n, Consumer<BasicBlock> consumer, HashSet<BasicBlock> visited) {
         visited.add(n);
-        System.out.println("Visited " + n._bid);
         /* For each successor node */
         for (BasicBlock s : n._successors) {
-            System.out.println("Checking  " + s._bid);
             if (!visited.contains(s))
-                walkCFG(s, consumer, visited);
+                postOrderWalk(s, consumer, visited);
         }
         consumer.accept(n);
     }
 
     /**
-     * Creates a reverse post order list of CFG nodes
-     *
-     * @param root The starting CFG node, typically START
-     * @return
+     * Utility to locate all the basic blocks.
      */
-    private static List<BasicBlock> getControlNodes(BasicBlock root) {
+    private static List<BasicBlock> findAllBlocks(BasicBlock root) {
         List<BasicBlock> nodes = new ArrayList<>();
-        walkCFG(root, (n) -> nodes.add(n), new HashSet<>());
+        postOrderWalk(root, (n) -> nodes.add(n), new HashSet<>());
         return nodes;
     }
 
     public String generateDotOutput() {
         StringBuilder sb = new StringBuilder();
-        sb.append("digraph domtree {\n");
+        sb.append("digraph DomTree {\n");
         for (BasicBlock n : _blocks) {
             sb.append(n.uniqueName()).append(" [label=\"").append(n.label()).append("\"];\n");
         }

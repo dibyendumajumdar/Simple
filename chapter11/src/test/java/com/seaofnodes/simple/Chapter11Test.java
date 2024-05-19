@@ -1,13 +1,10 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
-import com.seaofnodes.simple.linear.BasicBlock;
 import com.seaofnodes.simple.linear.CFGBuilder;
 import com.seaofnodes.simple.linear.DominatorTree;
 import com.seaofnodes.simple.linear.GCM;
-import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
-import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -25,7 +22,7 @@ public class Chapter11Test {
         CFGBuilder cfg = new CFGBuilder();
         cfg.buildCFG(Parser.START, stop);
         System.out.println(cfg.generateDotOutput());
-        DominatorTree tree = new DominatorTree(cfg._root);
+        DominatorTree tree = new DominatorTree(cfg._entry);
         System.out.println(tree.generateDotOutput());
     }
 
@@ -76,7 +73,7 @@ return primeCount;
         CFGBuilder cfg = new CFGBuilder();
         cfg.buildCFG(Parser.START, stop);
         System.out.println(cfg.generateDotOutput());
-        DominatorTree tree = new DominatorTree(cfg._root);
+        DominatorTree tree = new DominatorTree(cfg._entry);
 //        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
 //        System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         System.out.println(tree.generateDotOutput());
@@ -93,8 +90,8 @@ return primeCount;
 //        a = stop.find(9);
 //        Assert.assertFalse(a.dominates(stop));
 //        Assert.assertFalse(stop.dominates(a));
-//        GCM gcm = new GCM();
-//        gcm.schedule(stop.find(2));
+        GCM gcm = new GCM();
+        gcm.schedule(cfg._entry);
     }
 
 
