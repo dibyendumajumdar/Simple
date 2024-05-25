@@ -59,7 +59,10 @@ public class CFGBuilder {
      */
     public void buildCFG(StartNode startNode, StopNode stopNode) {
         _start = startNode;
-        postOrderWalk(_start, (n) -> _allInstructions.add(n), new BitSet());
+        postOrderWalk(_start, (n) -> _allInstructions.add(0, n), new BitSet());
+        int rpo = 1;
+        for (Node n: _allInstructions)
+            n._rpo = rpo;
         buildCFG(stopNode);
         processInfiniteLoops();
     }

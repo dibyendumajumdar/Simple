@@ -119,16 +119,10 @@ public class GCM {
         schedulePinnedNodes(allInstructions, entry, visited);
         for (Node n: allInstructions)
             scheduleNodeEarly(n, visited);
-        for (Node n: allInstructions) {
-            if (control(n) == null)
-                throw new RuntimeException("Missed schedule for " + n);
-            control(n)._earlySchedule.add(n);
-        }
-        dumpEarlySchedule(entry);
     }
 
 
-    private void dumpEarlySchedule(BasicBlock entry)
+    private void dumpSchedule(BasicBlock entry)
     {
         System.out.println(dumpNodesInBlock(new StringBuilder(), entry, new BitSet()).toString());
     }
@@ -138,8 +132,14 @@ public class GCM {
         if (visited.get(bb._bid))
             return sb;
         visited.set(bb._bid);
-        sb.append("L" + bb._bid + ":\n");
-        for (Node n: bb._earlySchedule) {
+        sb.append("L" + bb._bid + ": preds(");
+        for (BasicBlock pred: bb._predecessors)
+            sb.append(pred._bid).append(",");
+        sb.append(") succ(");
+        for (BasicBlock pred: bb._successors)
+            sb.append(pred._bid).append(",");
+        sb.append(")\n");
+        for (Node n: bb._schedule) {
             sb.append("\t");
             IRPrinter._printLineLlvmFormat(n, sb);
         }
@@ -166,12 +166,17 @@ public class GCM {
                 }
             }
         }
+        for (Node n: allInstructions) {
+            if (control(n) == null)
+                throw new RuntimeException("Missed schedule for " + n);
+            control(n)._schedule.add(n);
+        }
     }
 
     private int loopDepth(BasicBlock bb) {
         if (bb._loop != null)
             return bb._loop._depth;
-        return 0;
+        return 0; // No loop
     }
 
     private void scheduleNodeLate(Node n, BitSet visited) {
@@ -218,6 +223,11 @@ public class GCM {
         return a;
     }
 
+    private void localSchedule(List<BasicBlock> blocks) {
+        for (BasicBlock bb: blocks)
+            bb.reorderInstructionsByRPO();
+    }
+
     // See 2. Global Code Motion
     // in Global Code Motion Global Value Numbering
     // paper by Cliff Click
@@ -237,6 +247,8 @@ public class GCM {
         scheduleEarly(entry, exit, allBlocks, allInstructions);
         _earlySchedule.putAll(_schedule);
         scheduleLate(allInstructions);
+
+        dumpSchedule(entry);
     }
 
 

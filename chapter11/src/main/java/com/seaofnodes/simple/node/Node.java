@@ -627,7 +627,14 @@ public abstract class Node {
         return walk( n -> n._nid==nid ? n : null );
     }
 
-    //
+    /**
+     * RPO number, must be set using a post order walk from StartNode.
+     */
+    public int _rpo;
+
+    /**
+     * Does this node start a basic block?
+     */
     public Node getBlockStart() {
         return null;
     }

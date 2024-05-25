@@ -60,7 +60,7 @@ public class BasicBlock {
     /**
      * List of nodes assigned in the early scheduler
      */
-    public final List<Node> _earlySchedule = new ArrayList<>();
+    public final List<Node> _schedule = new ArrayList<>();
 
     public BasicBlock(int bid, Node start, Node end) {
         _bid = bid;
@@ -103,6 +103,10 @@ public class BasicBlock {
 
     public String uniqueName() {
         return _start != null ? ("BB_" + _start._nid + "_" + _end._nid) : ("BB_" + _bid);
+    }
+
+    public void reorderInstructionsByRPO() {
+        _schedule.sort(Comparator.comparingInt(n->n._rpo));
     }
 
     //////////////// dominator calculations /////////////////////
