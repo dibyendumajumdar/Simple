@@ -18,6 +18,24 @@ import static org.junit.Assert.assertEquals;
 public class Chapter11Test {
 
     @Test
+    public void testSimpleLoop() {
+        Parser parser = new Parser ("""
+                while(arg < 10) {
+                    arg = arg + 1;
+                }
+                return arg;
+                """
+        );
+        StopNode stop = parser.parse(true).iterate(true);
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
+        DominatorTree tree = new DominatorTree(cfg._entry);
+        System.out.println(tree.generateDotOutput());
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+    }
+
+    @Test
     public void testEndlessLoop() {
         Parser parser = new Parser ("""
                 if (arg) while(1) {}

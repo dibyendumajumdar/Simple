@@ -7,11 +7,11 @@ import java.util.*;
 
 public class GCM {
 
-    // We dont want to contaminate our SoN Nodes with stuff that
+    // We do not want to contaminate our SoN Nodes with stuff that
     // is part of the linear schedule; so we avoid Nodes knowing about
     // BasicBlocks etc.
     public final Map<Integer, BasicBlock> _earlySchedule = new HashMap<>();
-    public final Map<Integer, BasicBlock> _lateSchedule = new HashMap<>();
+    public final Map<Integer, BasicBlock> _schedule = new HashMap<>();
     public final Map<Integer, Node> _nodeLookup = new HashMap<>();
 
     /**
@@ -19,7 +19,7 @@ public class GCM {
      */
     private BasicBlock control(Node node) {
         assert node != null;
-        return _earlySchedule.get(node._nid);
+        return _schedule.get(node._nid);
     }
 
     /**
@@ -27,7 +27,7 @@ public class GCM {
      */
     private void control(Node node, BasicBlock bb) {
         assert bb != null;
-        _earlySchedule.put(node._nid, bb);
+        _schedule.put(node._nid, bb);
     }
 
     /**
@@ -155,6 +155,69 @@ public class GCM {
             _nodeLookup.put(n._nid, n);
     }
 
+    private void scheduleLate(List<Node> allInstructions)
+    {
+        BitSet visited = new BitSet();
+        for (Node n: allInstructions) {
+            if (pinned(n)) {
+                visited.set(n._nid);
+                for (Node use : n._outputs) {
+                    scheduleNodeLate(use, visited);
+                }
+            }
+        }
+    }
+
+    private int loopDepth(BasicBlock bb) {
+        if (bb._loop != null)
+            return bb._loop._depth;
+        return 0;
+    }
+
+    private void scheduleNodeLate(Node n, BitSet visited) {
+        if (visited.get(n._nid))
+            return;
+        visited.set(n._nid);
+        if (pinned(n)) // Not mentioned in paper
+            return;
+        BasicBlock lca = null;
+        for (Node use: n._outputs) {
+            scheduleNodeLate(use, visited);
+            BasicBlock useBlock = control(use);
+            if (use instanceof PhiNode) {
+                int j = 0;
+                for (; j < use.nIns(); j++) {
+                    if (use.in(j) == n)
+                        break;
+                }
+                assert use.in(j) == n;
+                assert j >= 1;
+                useBlock = useBlock._predecessors.get(j-1); // adjust for the fact that phi's first input is the region
+            }
+            lca = findLCA(lca, useBlock);
+        }
+        BasicBlock best = lca;
+        while (lca != control(n)) {
+            if (loopDepth(lca) < loopDepth(best))
+                best = lca;
+            lca = lca._idom;
+        }
+        control(n, best);
+    }
+
+    private BasicBlock findLCA(BasicBlock a, BasicBlock b) {
+        if (a == null) return  b;
+        while (a._domDepth < b._domDepth)
+            a = a._idom;
+        while (b._domDepth < a._domDepth)
+            b = b._idom;
+        while (a != b) {
+            a = a._idom;
+            b = b._idom;
+        }
+        return a;
+    }
+
     // See 2. Global Code Motion
     // in Global Code Motion Global Value Numbering
     // paper by Cliff Click
@@ -172,6 +235,8 @@ public class GCM {
         LoopFinder.annotateBasicBlocks(top);
         System.out.println(LoopNest.generateDotOutput(loops));
         scheduleEarly(entry, exit, allBlocks, allInstructions);
+        _earlySchedule.putAll(_schedule);
+        scheduleLate(allInstructions);
     }
 
 
