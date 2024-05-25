@@ -1,11 +1,17 @@
 package com.seaofnodes.simple;
 
 import com.seaofnodes.simple.evaluator.Evaluator;
+import com.seaofnodes.simple.linear.BasicBlock;
 import com.seaofnodes.simple.linear.CFGBuilder;
 import com.seaofnodes.simple.linear.DominatorTree;
 import com.seaofnodes.simple.linear.GCM;
+import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -21,9 +27,11 @@ public class Chapter11Test {
         StopNode stop = parser.parse(true).iterate(true);
         CFGBuilder cfg = new CFGBuilder();
         cfg.buildCFG(Parser.START, stop);
-        System.out.println(cfg.generateDotOutput());
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
         DominatorTree tree = new DominatorTree(cfg._entry);
         System.out.println(tree.generateDotOutput());
+        GCM gcm = new GCM();
+        gcm.schedule(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
     }
 
     @Test
@@ -72,7 +80,7 @@ return primeCount;
         assertEquals(Long.valueOf(4), eval.evaluate(10, 100));
         CFGBuilder cfg = new CFGBuilder();
         cfg.buildCFG(Parser.START, stop);
-        System.out.println(cfg.generateDotOutput());
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
         DominatorTree tree = new DominatorTree(cfg._entry);
 //        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
 //        System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
@@ -91,8 +99,32 @@ return primeCount;
 //        Assert.assertFalse(a.dominates(stop));
 //        Assert.assertFalse(stop.dominates(a));
         GCM gcm = new GCM();
-        gcm.schedule(cfg._entry);
+        gcm.schedule(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+
     }
 
-
+    // Example of loop from 1994 paper
+    // strength reduction
+    @Test
+    public void testLoopFinding() {
+        BasicBlock b1 = new BasicBlock(1);
+        BasicBlock b2 = new BasicBlock(2, b1);
+        BasicBlock b3 = new BasicBlock(3, b1, b2);
+        BasicBlock b4 = new BasicBlock(4, b3);
+        BasicBlock b5 = new BasicBlock(5, b4);
+        BasicBlock b6 = new BasicBlock(6, b4);
+        BasicBlock b7 = new BasicBlock(7, b5, b6);
+        BasicBlock b8 = new BasicBlock(8, b7);
+        BasicBlock b9 = new BasicBlock(9, b8);
+        BasicBlock b10 = new BasicBlock(10, b8);
+        b1.addPredecessor(b9);
+        b3.addPredecessor(b4);
+        b3.addPredecessor(b8);
+        b4.addPredecessor(b7);
+        b7.addPredecessor(b10);
+        List<BasicBlock> blocks = Arrays.asList(b1,b2,b3,b4,b5,b6,b7,b8,b9,b10);
+        System.out.println(CFGBuilder.generateDotOutput(blocks));
+        DominatorTree tree = new DominatorTree(b1);
+        System.out.println(tree.generateDotOutput());
+    }
 }

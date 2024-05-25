@@ -52,16 +52,20 @@ public class BasicBlock {
      */
     public Set<BasicBlock> _frontier = new HashSet<>();
 
+    /**
+     * Nearest Loop to which this BB belongs
+     */
+    public LoopNest _loop;
 
     public BasicBlock(Node start, Node end) {
         long x = start._nid;
         long y = end._nid;
-        this._bid = (x << 32) | y;
-        this._start = start;
-        this._end = end;
+        _bid = (x << 32) | y;   // FIXME
+        _start = start;
+        _end = end;
     }
 
-    // For tests
+    // For testing only
     public BasicBlock(int bid, BasicBlock... preds) {
         this._bid = bid;
         for (BasicBlock bb : preds)
@@ -98,9 +102,7 @@ public class BasicBlock {
         return _start != null ? ("BB_" + _start._nid + "_" + _end._nid) : ("BB_" + _bid);
     }
 
-    //////////////// Some fields to support dominator calculations /////////////////////
-    // These are updated by DominatorTree
-
+    //////////////// dominator calculations /////////////////////
 
     public void resetDomInfo() {
         _domDepth = 0;

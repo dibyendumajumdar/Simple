@@ -41,7 +41,7 @@ public class LoopFinder {
         for (LoopNest loopNest : loopNests) {
             LoopNest sameHead = map.get(loopNest._loopHead._bid);
             if (sameHead == null) map.put(loopNest._loopHead._bid, loopNest);
-            else sameHead._nodes.addAll(loopNest._nodes);
+            else sameHead._blocks.addAll(loopNest._blocks);
         }
         return map.values().stream().collect(Collectors.toList());
     }
@@ -58,14 +58,28 @@ public class LoopFinder {
         }
         LoopNest top = null;
         for (LoopNest nest : loopNests) {
-            if (nest._parent != null) nest._parent._children.add(nest);
-            else top = nest._parent;
+            if (nest._parent != null) nest._parent._kids.add(nest);
+            else top = nest;
         }
         return top;
     }
 
-    public static void annotateBasicBlocks(List<LoopNest> loops) {
-        var sortedByDepth = loops.stream().sorted(Collections.reverseOrder(Comparator.comparingLong(n -> n._loopHead._domDepth))).toList();
-        return;
+    public static void annotateBasicBlocks(LoopNest loop, Set<LoopNest> visited) {
+        if (visited.contains(loop))
+            return;
+        visited.add(loop);
+        for (LoopNest kid: loop._kids) {
+            kid._depth = loop._depth+1;
+            annotateBasicBlocks(kid, visited);
+        }
+        for (BasicBlock block: loop._blocks) {
+            if (block._loop == null)
+                block._loop = loop;
+        }
+    }
+
+    public static void annotateBasicBlocks(LoopNest top) {
+        top._depth = 1;
+        annotateBasicBlocks(top, new HashSet<>());
     }
 }

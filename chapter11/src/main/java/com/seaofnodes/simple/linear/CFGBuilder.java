@@ -15,7 +15,7 @@ import java.util.function.Consumer;
  */
 public class CFGBuilder {
 
-    ArrayList<BasicBlock> _basicBlocks = new ArrayList<>();
+    public final ArrayList<BasicBlock> _basicBlocks = new ArrayList<>();
 
     Node _start;
 
@@ -28,6 +28,13 @@ public class CFGBuilder {
      * Exit block
      */
     public BasicBlock _exit;
+
+    /**
+     * All Nodes in the input SoN graph
+     */
+    public List<Node> _allInstructions = new ArrayList<>();
+
+    // FIXME these lookups do a linear search for now
 
     BasicBlock getBasicBlock(Node start, Node end) {
         for (BasicBlock bb : _basicBlocks) {
@@ -44,9 +51,17 @@ public class CFGBuilder {
     }
 
     /**
-     *
-     * @param end
-     * @return
+     * Build a CFG
+     */
+    public void buildCFG(StartNode startNode, StopNode stopNode) {
+        _start = startNode;
+        postOrderWalk(_start, (n) -> _allInstructions.add(n), new BitSet());
+        buildCFG(stopNode);
+        processInfiniteLoops();
+    }
+
+    /**
+     * Build a CFG bottom up
      */
     private BasicBlock buildCFG(Node end) {
         Node start = end.getBlockStart();
@@ -70,17 +85,25 @@ public class CFGBuilder {
         return bb;
     }
 
-    public void buildCFG(StartNode startNode, StopNode stopNode) {
-        _start = startNode;
-        buildCFG(stopNode);
-        processInfiniteLoops();
+    // SoN thesis says we find basic blocks bottom up
+    // but this has an issue that infinite loops can be unreachable, e.g.
+    // if (arg) while(1) {}
+    // return 0;
+    private void processInfiniteLoops() {
+        var nodes = getNodesInRPO(_start).reversed();
+        for (Node r : nodes) {
+            // Regions start basic blocks, so if we never saw this
+            // region then there is no basic block yet
+            if (r instanceof RegionNode && getBasicBlock(r) == null)
+                buildCFG(r);
+        }
     }
 
     static void postOrderWalk(Node n, Consumer<Node> consumer, BitSet visited) {
         visited.set(n._nid);
         /* For each successor node */
         for (Node s: n._outputs) {
-            if (s == null || !s.isCFG()) continue;
+            if (s == null) continue;
             if (!visited.get(s._nid))
                 postOrderWalk(s, consumer, visited);
         }
@@ -100,27 +123,13 @@ public class CFGBuilder {
         return nodes;
     }
 
-    // SoN thesis says we find basic blocks bottom up
-    // but this has an issue that infinite loops can be unreachable, e.g.
-    // if (arg) while(1) {}
-    // return 0;
-    private void processInfiniteLoops() {
-        var nodes = getNodesInRPO(_start).reversed();
-        for (Node r : nodes) {
-            // Regions start basic blocks, so if we never saw this
-            // region then there is no basic block yet
-            if (r instanceof RegionNode && getBasicBlock(r) == null)
-                buildCFG(r);
-        }
-    }
-
-    public String generateDotOutput() {
+    public static String generateDotOutput(List<BasicBlock> blocks) {
         StringBuilder sb = new StringBuilder();
         sb.append("digraph CFG {\n");
-        for (BasicBlock bb : _basicBlocks) {
+        for (BasicBlock bb : blocks) {
             sb.append(bb.uniqueName()).append(" [label=\"").append(bb.label()).append("\"];\n");
         }
-        for (BasicBlock bb : _basicBlocks) {
+        for (BasicBlock bb : blocks) {
             for (BasicBlock succ : bb._successors) {
                 sb.append(bb.uniqueName()).append("->").append(succ.uniqueName()).append(";\n");
             }
