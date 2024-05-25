@@ -5,7 +5,7 @@ import com.seaofnodes.simple.node.Node;
 import java.util.*;
 
 public class BasicBlock {
-    public final long _bid;
+    public final int _bid;
     public List<BasicBlock> _successors = new ArrayList<>(); // successors
     List<BasicBlock> _predecessors = new ArrayList<>();
 
@@ -57,10 +57,13 @@ public class BasicBlock {
      */
     public LoopNest _loop;
 
-    public BasicBlock(Node start, Node end) {
-        long x = start._nid;
-        long y = end._nid;
-        _bid = (x << 32) | y;   // FIXME
+    /**
+     * List of nodes assigned in the early scheduler
+     */
+    public final List<Node> _earlySchedule = new ArrayList<>();
+
+    public BasicBlock(int bid, Node start, Node end) {
+        _bid = bid;
         _start = start;
         _end = end;
     }

@@ -37,7 +37,7 @@ public class LoopFinder {
     }
 
     public static List<LoopNest> mergeLoopsWithSameHead(List<LoopNest> loopNests) {
-        HashMap<Long, LoopNest> map = new HashMap<>();
+        HashMap<Integer, LoopNest> map = new HashMap<>();
         for (LoopNest loopNest : loopNests) {
             LoopNest sameHead = map.get(loopNest._loopHead._bid);
             if (sameHead == null) map.put(loopNest._loopHead._bid, loopNest);
@@ -79,6 +79,8 @@ public class LoopFinder {
     }
 
     public static void annotateBasicBlocks(LoopNest top) {
+        if (top == null) // No loop
+            return;
         top._depth = 1;
         annotateBasicBlocks(top, new HashSet<>());
     }

@@ -30,8 +30,27 @@ public class Chapter11Test {
         System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
         DominatorTree tree = new DominatorTree(cfg._entry);
         System.out.println(tree.generateDotOutput());
-        GCM gcm = new GCM();
-        gcm.schedule(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+    }
+
+    @Test
+    public void testStoreInIf() {
+        Parser parser = new Parser(
+        """
+                struct S {
+                    int f;
+                }
+                S v0=new S;
+                if(arg) v0.f=1;
+                return v0;
+                """);
+        StopNode stop = parser.parse(true).iterate(true);
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
+        DominatorTree tree = new DominatorTree(cfg._entry);
+        System.out.println(tree.generateDotOutput());
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
     }
 
     @Test
@@ -98,8 +117,7 @@ return primeCount;
 //        a = stop.find(9);
 //        Assert.assertFalse(a.dominates(stop));
 //        Assert.assertFalse(stop.dominates(a));
-        GCM gcm = new GCM();
-        gcm.schedule(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
 
     }
 

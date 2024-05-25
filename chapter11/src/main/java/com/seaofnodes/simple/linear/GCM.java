@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.linear;
 
+import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.node.*;
 
 import java.util.*;
@@ -11,6 +12,7 @@ public class GCM {
     // BasicBlocks etc.
     public final Map<Integer, BasicBlock> _earlySchedule = new HashMap<>();
     public final Map<Integer, BasicBlock> _lateSchedule = new HashMap<>();
+    public final Map<Integer, Node> _nodeLookup = new HashMap<>();
 
     /**
      * Get a control block
@@ -68,8 +70,19 @@ public class GCM {
                     control(proj, entry);
                 else if (n instanceof ConstantNode)
                     control(n, entry);
-                else if (n instanceof NewNode newNode)
-                    control(newNode, control(newNode.in(0)));
+                else if (n instanceof NewNode newNode) {
+                    Node ctrl = newNode.in(0);
+                    assert pinned(ctrl);
+                    if (!visited.get(ctrl._nid)) {
+                        visited.set(ctrl._nid);
+                        // Only possibility is proj on start
+                        if (ctrl instanceof ProjNode proj && proj.ctrl() instanceof StartNode)
+                            control(proj, entry);
+                        else
+                            throw new IllegalStateException("Unpinned ctrl input to NewNode " + ctrl);
+                    }
+                    control(newNode, control(ctrl));
+                }
             }
     }
 
@@ -106,18 +119,48 @@ public class GCM {
         schedulePinnedNodes(allInstructions, entry, visited);
         for (Node n: allInstructions)
             scheduleNodeEarly(n, visited);
-        // validate we didn't miss a node
         for (Node n: allInstructions) {
             if (control(n) == null)
-                throw new RuntimeException("Missed scheduling " + n);
+                throw new RuntimeException("Missed schedule for " + n);
+            control(n)._earlySchedule.add(n);
         }
+        dumpEarlySchedule(entry);
+    }
+
+
+    private void dumpEarlySchedule(BasicBlock entry)
+    {
+        System.out.println(dumpNodesInBlock(new StringBuilder(), entry, new BitSet()).toString());
+    }
+
+    private StringBuilder dumpNodesInBlock(StringBuilder sb, BasicBlock bb, BitSet visited)
+    {
+        if (visited.get(bb._bid))
+            return sb;
+        visited.set(bb._bid);
+        sb.append("L" + bb._bid + ":\n");
+        for (Node n: bb._earlySchedule) {
+            sb.append("\t");
+            IRPrinter._printLineLlvmFormat(n, sb);
+        }
+        for (BasicBlock succ: bb._successors) {
+            dumpNodesInBlock(sb, succ, visited);
+        }
+        return sb;
+    }
+
+    private void setupNodeLookup(List<Node> allInstructions)
+    {
+        for (Node n: allInstructions)
+            _nodeLookup.put(n._nid, n);
     }
 
     // See 2. Global Code Motion
     // in Global Code Motion Global Value Numbering
     // paper by Cliff Click
     // Also see SoN thesis
-    public void schedule(BasicBlock entry, BasicBlock exit, List<BasicBlock> allBlocks, List<Node> allInstructions) {
+    public GCM(BasicBlock entry, BasicBlock exit, List<BasicBlock> allBlocks, List<Node> allInstructions) {
+        setupNodeLookup(allInstructions);
         // Find the CFG Dominator Tree and
         // annotate basic blocks with dominator tree depth
         DominatorTree tree = new DominatorTree(entry);

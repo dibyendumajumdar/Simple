@@ -15,6 +15,10 @@ import java.util.function.Consumer;
  */
 public class CFGBuilder {
 
+    /** basic block ID generator */
+    private int _nextBBID = 1;
+
+    /** all the basic blocks */
     public final ArrayList<BasicBlock> _basicBlocks = new ArrayList<>();
 
     Node _start;
@@ -70,7 +74,7 @@ public class CFGBuilder {
         BasicBlock bb = getBasicBlock(start, end);
         if (bb != null) return bb;
         else {
-            bb = new BasicBlock(start, end);
+            bb = new BasicBlock(_nextBBID++, start, end);
             if (start instanceof StartNode)
                 _entry = bb;
             else if (start instanceof StopNode)

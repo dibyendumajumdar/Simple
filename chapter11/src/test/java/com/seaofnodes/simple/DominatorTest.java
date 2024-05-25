@@ -84,7 +84,6 @@ public class DominatorTest {
         BasicBlock root = makeGraph2(nodes);
         System.out.println(generateDotOutput(nodes));
         DominatorTree tree = new DominatorTree(root);
-        GCM gcm = new GCM();
         List<LoopNest> loopNests = LoopFinder.findLoops(nodes);
         Assert.assertEquals(2, loopNests.get(0)._loopHead._bid);
         Assert.assertEquals(2, loopNests.get(1)._loopHead._bid);
