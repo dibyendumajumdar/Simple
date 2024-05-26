@@ -36,10 +36,8 @@ public class GCM {
     private void scheduleCFGNodes(List<BasicBlock> allBlocks, BitSet bitset) {
         for (BasicBlock bb: allBlocks) {
             control(bb._start, bb);
-            bitset.set(bb._start._nid);
             if (bb._start != bb._end) {
                 control(bb._end, bb);
-                bitset.set(bb._end._nid);
             }
         }
     }
@@ -49,15 +47,11 @@ public class GCM {
      */
     private boolean pinned(Node n) {
         return n instanceof PhiNode
-                || n.isCFG()
-                || n instanceof ProjNode proj && proj.ctrl() instanceof StartNode
-                || n instanceof ConstantNode
                 || n instanceof NewNode;
     }
 
     // CFG nodes should have been pinned already
     // Phis are pinned to the BB of related region
-    // Constants and Proj(Start) get pinned to Entry block
     // New gets pinned to the control block
     private void schedulePinnedNodes(List<Node> allInstructions, BasicBlock entry, BitSet visited) {
         for (Node n: allInstructions)
@@ -66,13 +60,8 @@ public class GCM {
                 // pin it
                 if (n instanceof PhiNode phi)
                     control(phi, control(phi.in(0)));
-                else if (n instanceof ProjNode proj && proj.ctrl() instanceof StartNode)
-                    control(proj, entry);
-                else if (n instanceof ConstantNode)
-                    control(n, entry);
                 else if (n instanceof NewNode newNode) {
                     Node ctrl = newNode.in(0);
-                    assert pinned(ctrl);
                     if (!visited.get(ctrl._nid)) {
                         visited.set(ctrl._nid);
                         // Only possibility is proj on start
@@ -87,8 +76,10 @@ public class GCM {
     }
 
     private void scheduleNodeEarly(Node n, BitSet visited) {
-        if (visited.get(n._nid))
+        if (visited.get(n._nid)) {
+            assert(control(n) != null);
             return;
+        }
         visited.set(n._nid);
         for (Node in: n._inputs) {
             if (in == null)
@@ -108,6 +99,7 @@ public class GCM {
             else if (b._domDepth < inb._domDepth)
                 b = inb;
         }
+        assert b != null;
         control(n, b);
     }
 
@@ -183,7 +175,7 @@ public class GCM {
         if (visited.get(n._nid))
             return;
         visited.set(n._nid);
-        if (pinned(n)) // Not mentioned in paper
+        if (pinned(n) || n.nOuts() == 0 || n.isCFG()) // Not mentioned in paper, CFG nodes are not movable either
             return;
         BasicBlock lca = null;
         for (Node use: n._outputs) {
@@ -198,6 +190,7 @@ public class GCM {
                 assert use.in(j) == n;
                 assert j >= 1;
                 useBlock = useBlock._predecessors.get(j-1); // adjust for the fact that phi's first input is the region
+                assert useBlock != null;
             }
             lca = findLCA(lca, useBlock);
         }
@@ -247,7 +240,7 @@ public class GCM {
         scheduleEarly(entry, exit, allBlocks, allInstructions);
         _earlySchedule.putAll(_schedule);
         scheduleLate(allInstructions);
-
+        localSchedule(allBlocks);
         dumpSchedule(entry);
     }
 

@@ -59,12 +59,19 @@ public class CFGBuilder {
      */
     public void buildCFG(StartNode startNode, StopNode stopNode) {
         _start = startNode;
+        getAllInstructionsRPO();
+        buildCFG(stopNode);
+        processInfiniteLoops();
+    }
+
+    private void getAllInstructionsRPO() {
+        // Find all instructions using a post order walk,
+        // Note we prepend so that the final order is reverse post order
         postOrderWalk(_start, (n) -> _allInstructions.add(0, n), new BitSet());
+        // assign rpo numbers so that we can easily sort later on
         int rpo = 1;
         for (Node n: _allInstructions)
             n._rpo = rpo++;
-        buildCFG(stopNode);
-        processInfiniteLoops();
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.evaluator;
 
+import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -352,7 +353,6 @@ public class Scheduler {
     private void doBuildCTF(StartNode start) {
         var queue = new Stack<NodeData>();
         var phiQueue = new Stack<NodeData>();
-        List<BasicBlock> blocks = new ArrayList<>();
         queue.push(d(start));
         int depth = 0;
         while (!queue.isEmpty()) {
@@ -363,11 +363,9 @@ public class Scheduler {
             switch (node) {
                 case StartNode s:
                     block = new BasicBlock(s, depth++);
-                    blocks.add(block);
                     break;
                 case LoopNode l:
                     block = new BasicBlock(l, depth++, d(l.in(1)).block);
-                    blocks.add(block);
                     break;
                 case RegionNode r:
                     var prev = new ArrayList<BasicBlock>();
@@ -375,7 +373,6 @@ public class Scheduler {
                         od(r.in(i)).ifPresent(d->prev.add(d.block));
                     }
                     block = new BasicBlock(r, depth++, prev.toArray(BasicBlock[]::new));
-                    blocks.add(block);
                     break;
                 case IfNode i:
                     block = d(i.in(0)).block;
@@ -385,8 +382,6 @@ public class Scheduler {
                     break;
                 default:
                     block = new BasicBlock(node, depth++, d(node.in(0)).block);
-                    blocks.add(block);
-                    break;
             }
             data.block = block;
             if (node instanceof RegionNode r) {
@@ -582,6 +577,34 @@ public class Scheduler {
         return blocks.get(start);
     }
 
+
+    private static void dumpSchedule(Block start)
+    {
+        System.out.println(dumpNodesInBlock(new StringBuilder(), start, new HashSet<>()).toString());
+    }
+
+    private static StringBuilder dumpNodesInBlock(StringBuilder sb, Block bb, Set<Block> visited)
+    {
+        if (visited.contains(bb))
+            return sb;
+        visited.add(bb);
+        sb.append("L" + System.identityHashCode(bb) + ":");
+        sb.append(" succ(");
+        for (Block next: bb.next)
+            sb.append(System.identityHashCode(next)).append(",");
+        sb.append(")\n");
+        for (Node n: bb.nodes) {
+            sb.append("\t");
+            IRPrinter._printLineLlvmFormat(n, sb);
+        }
+        sb.append("\t");
+        IRPrinter._printLineLlvmFormat(bb.exit, sb);
+        for (Block succ: bb.next) {
+            dumpNodesInBlock(sb, succ, visited);
+        }
+        return sb;
+    }
+
     /**
      * Create a schedule for the program reachable from start.
      * @param start The start node
@@ -592,7 +615,9 @@ public class Scheduler {
         scheduler.doMarkAlive(start);
         scheduler.doBuildCTF(start);
         scheduler.doSchedule();
-        return scheduler.build(start);
+        Block startBlock = scheduler.build(start);
+        dumpSchedule(startBlock);
+        return startBlock;
     }
 
 }

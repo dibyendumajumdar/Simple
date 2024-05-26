@@ -5,11 +5,9 @@ import com.seaofnodes.simple.linear.BasicBlock;
 import com.seaofnodes.simple.linear.CFGBuilder;
 import com.seaofnodes.simple.linear.DominatorTree;
 import com.seaofnodes.simple.linear.GCM;
-import com.seaofnodes.simple.node.Node;
 import com.seaofnodes.simple.node.StopNode;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -27,6 +25,8 @@ public class Chapter11Test {
                 """
         );
         StopNode stop = parser.parse(true).iterate(true);
+        var eval = new Evaluator(stop);
+        assertEquals(Long.valueOf(10), eval.evaluate(0, 100));
         CFGBuilder cfg = new CFGBuilder();
         cfg.buildCFG(Parser.START, stop);
         System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
@@ -72,7 +72,7 @@ public class Chapter11Test {
     }
 
     @Test
-    public void testDomTree() {
+    public void testPrimeNumberGen() {
         Parser parser = new Parser(
 """
 if (arg < 2) {
@@ -119,22 +119,7 @@ return primeCount;
         cfg.buildCFG(Parser.START, stop);
         System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
         DominatorTree tree = new DominatorTree(cfg._entry);
-//        System.out.println(IRPrinter.prettyPrint(stop, 99, true));
-//        System.out.println(new GraphVisualizer().generateDotOutput(stop,null,null));
         System.out.println(tree.generateDotOutput());
-//
-//        Node a = stop.find(2);
-//        Assert.assertTrue(a.dominates(stop));
-//        Assert.assertFalse(stop.dominates(a));
-//        a = stop.find(4);
-//        Assert.assertTrue(a.dominates(stop));
-//        Assert.assertFalse(stop.dominates(a));
-//        a = stop.find(8);
-//        Assert.assertTrue(a.dominates(stop));
-//        Assert.assertFalse(stop.dominates(a));
-//        a = stop.find(9);
-//        Assert.assertFalse(a.dominates(stop));
-//        Assert.assertFalse(stop.dominates(a));
         GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
 
     }
