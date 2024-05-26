@@ -5,17 +5,61 @@ import com.seaofnodes.simple.node.*;
 
 import java.util.*;
 
+/**
+ * GCM Stands for Global Code Motion; its goal is to decide where to place
+ * Sea of Node instructions in the Basic Blocks. It is global in the sense that
+ * the scheduling of instructions looks at all Basic Blocks in the program, rather
+ * than scheduling locally within a single block.
+ *
+ * The implementation here is based upon and is a reasonably faithful reproduction
+ * of the algorithm described in the paper 'Global Code Motion, Global Value Numbering'
+ * by Cliff Click, 1995.
+ */
 public class GCM {
 
+    // NOTE
     // We do not want to contaminate our SoN Nodes with stuff that
     // is part of the linear schedule; so we avoid Nodes knowing about
-    // BasicBlocks etc.
-    public final Map<Integer, BasicBlock> _earlySchedule = new HashMap<>();
-    public final Map<Integer, BasicBlock> _schedule = new HashMap<>();
-    public final Map<Integer, Node> _nodeLookup = new HashMap<>();
+    // BasicBlocks etc. To avoid tight coupling we use lookup tables instead.
 
     /**
-     * Get a control block
+     * Maps a Nodes by _nid to the BasicBlock to which it is assigned.
+     * This is the early schedule which is used as an input to final schedule.
+     */
+    public final Map<Integer, BasicBlock> _earlySchedule = new HashMap<>();
+
+    /**
+     * Maps Nodes by _nid to the BasicBlock to which they belong.
+     * This is the outcome of the late schedule, which has the early schedule
+     * as a starting point.
+     */
+    public final Map<Integer, BasicBlock> _schedule = new HashMap<>();
+
+    // See 2. Global Code Motion
+    // in Global Code Motion Global Value Numbering
+    // paper by Cliff Click
+    // Also see SoN thesis
+    public GCM(BasicBlock entry, BasicBlock exit, List<BasicBlock> blocks, List<Node> instructions) {
+        // Find the CFG Dominator Tree and
+        // annotate basic blocks with dominator tree depth
+        DominatorTree tree = new DominatorTree(entry);
+        // find loops and compute loop nesting depth for
+        // each basic block
+        List<LoopNest> naturalLoops = LoopFinder.findLoops(tree._blocks);
+        List<LoopNest> loops = LoopFinder.mergeLoopsWithSameHead(naturalLoops);
+        LoopNest top = LoopFinder.buildLoopTree(loops);
+        LoopFinder.annotateBasicBlocks(top);
+        System.out.println(LoopNest.generateDotOutput(loops));
+        scheduleEarly(entry, exit, blocks, instructions);
+        _earlySchedule.putAll(_schedule);
+        scheduleLate(instructions);
+        localSchedule(blocks);
+        dumpSchedule(entry);
+    }
+
+
+    /**
+     * Gets the BasicBlock assigned to a Node
      */
     private BasicBlock control(Node node) {
         assert node != null;
@@ -23,7 +67,7 @@ public class GCM {
     }
 
     /**
-     * Set a control block
+     * Sets the basicBlock assigned to a Node
      */
     private void control(Node node, BasicBlock bb) {
         assert bb != null;
@@ -33,7 +77,7 @@ public class GCM {
     /**
      * Create a reverse mapping from Node ID to BasicBlock
      */
-    private void scheduleCFGNodes(List<BasicBlock> allBlocks, BitSet bitset) {
+    private void scheduleCFGNodes(List<BasicBlock> allBlocks) {
         for (BasicBlock bb: allBlocks) {
             control(bb._start, bb);
             if (bb._start != bb._end) {
@@ -84,11 +128,13 @@ public class GCM {
         for (Node in: n._inputs) {
             if (in == null)
                 continue;
-            if (control(in) == null)
+            if (control(in) == null)    // No BasicBlock assigned yet
                 scheduleNodeEarly(in, visited);
         }
-        if (control(n) != null)
+        if (control(n) != null)         // basic Block already assigned
             return;
+        // Place instructions in the first block
+        // where they are dominated by their inputs
         BasicBlock b = null;
         for (Node in: n._inputs) {
             if (in == null)
@@ -103,54 +149,26 @@ public class GCM {
         control(n, b);
     }
 
-    private void scheduleEarly(BasicBlock entry, BasicBlock exit, List<BasicBlock> allBlocks, List<Node> allInstructions) {
-        // Schedule early
-        BitSet visited = new BitSet();
-        scheduleCFGNodes(allBlocks, visited);
+    /**
+     * Implements the schedule early algoritm as described in the GCMGVN paper.
+     */
+    private void scheduleEarly(BasicBlock entry, BasicBlock exit, List<BasicBlock> blocks, List<Node> instructions) {
+        scheduleCFGNodes(blocks);
         assert exit._start instanceof StopNode;
-        schedulePinnedNodes(allInstructions, entry, visited);
-        for (Node n: allInstructions)
+        BitSet visited = new BitSet();
+        schedulePinnedNodes(instructions, entry, visited);
+        for (Node n: instructions)
             scheduleNodeEarly(n, visited);
     }
 
 
-    private void dumpSchedule(BasicBlock entry)
-    {
-        System.out.println(dumpNodesInBlock(new StringBuilder(), entry, new BitSet()).toString());
-    }
-
-    private StringBuilder dumpNodesInBlock(StringBuilder sb, BasicBlock bb, BitSet visited)
-    {
-        if (visited.get(bb._bid))
-            return sb;
-        visited.set(bb._bid);
-        sb.append("L" + bb._bid + ": preds(");
-        for (BasicBlock pred: bb._predecessors)
-            sb.append(pred._bid).append(",");
-        sb.append(") succ(");
-        for (BasicBlock pred: bb._successors)
-            sb.append(pred._bid).append(",");
-        sb.append(")\n");
-        for (Node n: bb._schedule) {
-            sb.append("\t");
-            IRPrinter._printLineLlvmFormat(n, sb);
-        }
-        for (BasicBlock succ: bb._successors) {
-            dumpNodesInBlock(sb, succ, visited);
-        }
-        return sb;
-    }
-
-    private void setupNodeLookup(List<Node> allInstructions)
-    {
-        for (Node n: allInstructions)
-            _nodeLookup.put(n._nid, n);
-    }
-
-    private void scheduleLate(List<Node> allInstructions)
+    /**
+     * Implements the schedule late algorithm from the GCMGVN paper
+     */
+    private void scheduleLate(List<Node> instructions)
     {
         BitSet visited = new BitSet();
-        for (Node n: allInstructions) {
+        for (Node n: instructions) {
             if (pinned(n)) {
                 visited.set(n._nid);
                 for (Node use : n._outputs) {
@@ -158,7 +176,7 @@ public class GCM {
                 }
             }
         }
-        for (Node n: allInstructions) {
+        for (Node n: instructions) {
             if (control(n) == null)
                 throw new RuntimeException("Missed schedule for " + n);
             control(n)._schedule.add(n);
@@ -178,6 +196,10 @@ public class GCM {
         if (pinned(n) || n.nOuts() == 0 || n.isCFG()) // Not mentioned in paper, CFG nodes are not movable either
             return;
         BasicBlock lca = null;
+        // Place instructions in the last block where they
+        // dominate their uses
+        // We need to find the lowest common ancestor (LCA)
+        // in the dominator tree of all an instruction’s uses.
         for (Node use: n._outputs) {
             scheduleNodeLate(use, visited);
             BasicBlock useBlock = control(use);
@@ -194,6 +216,7 @@ public class GCM {
             }
             lca = findLCA(lca, useBlock);
         }
+        // Choose the block that is in the shallowest loop nest possible
         BasicBlock best = lca;
         while (lca != control(n)) {
             if (loopDepth(lca) < loopDepth(best))
@@ -203,6 +226,9 @@ public class GCM {
         control(n, best);
     }
 
+    /**
+     * Find lowest common ancestor in the dominator tree
+     */
     private BasicBlock findLCA(BasicBlock a, BasicBlock b) {
         if (a == null) return  b;
         while (a._domDepth < b._domDepth)
@@ -216,33 +242,57 @@ public class GCM {
         return a;
     }
 
+    /**
+     * Order instructions by RPO within a block
+     */
     private void localSchedule(List<BasicBlock> blocks) {
         for (BasicBlock bb: blocks)
             bb.reorderInstructionsByRPO();
     }
 
-    // See 2. Global Code Motion
-    // in Global Code Motion Global Value Numbering
-    // paper by Cliff Click
-    // Also see SoN thesis
-    public GCM(BasicBlock entry, BasicBlock exit, List<BasicBlock> allBlocks, List<Node> allInstructions) {
-        setupNodeLookup(allInstructions);
-        // Find the CFG Dominator Tree and
-        // annotate basic blocks with dominator tree depth
-        DominatorTree tree = new DominatorTree(entry);
-        // find loops and compute loop nesting depth for
-        // each basic block
-        List<LoopNest> naturalLoops = LoopFinder.findLoops(tree._blocks);
-        List<LoopNest> loops = LoopFinder.mergeLoopsWithSameHead(naturalLoops);
-        LoopNest top = LoopFinder.buildLoopTree(loops);
-        LoopFinder.annotateBasicBlocks(top);
-        System.out.println(LoopNest.generateDotOutput(loops));
-        scheduleEarly(entry, exit, allBlocks, allInstructions);
-        _earlySchedule.putAll(_schedule);
-        scheduleLate(allInstructions);
-        localSchedule(allBlocks);
-        dumpSchedule(entry);
+    private void dumpSchedule(BasicBlock entry)
+    {
+        System.out.println(dumpNodesInBlock(new StringBuilder(), entry, new BitSet()).toString());
     }
 
+    private BasicBlock trueBranch(BasicBlock bb) {
+        assert bb._end instanceof IfNode;
+        assert bb._successors.size() == 2;
+        BasicBlock first = bb._successors.get(0);
+        BasicBlock second = bb._successors.get(1);
+        assert first._start instanceof ProjNode prj && prj.ctrl() == bb._end;
+        assert second._start instanceof ProjNode prj && prj.ctrl() == bb._end;
+        ProjNode proj = (ProjNode) first._start;
+        return proj._idx == 0 ? first : second;
+    }
+
+    private BasicBlock falseBranch(BasicBlock bb, BasicBlock trueBranch) {
+        BasicBlock first = bb._successors.get(0);
+        BasicBlock second = bb._successors.get(1);
+        return  (first == trueBranch) ? second : first;
+    }
+
+    private StringBuilder dumpNodesInBlock(StringBuilder sb, BasicBlock bb, BitSet visited)
+    {
+        if (visited.get(bb._bid))
+            return sb;
+        visited.set(bb._bid);
+        sb.append("L" + bb._bid + ":\n");
+        for (Node n: bb._schedule) {
+            sb.append("\t");
+            IRPrinter._printLineLlvmFormat(n, sb);
+        }
+        if (bb._successors.size() == 2) {
+            BasicBlock trueBranch = trueBranch(bb);
+            sb.append("\t; if true goto L").append(trueBranch._bid).append(" else goto L")
+                    .append(falseBranch(bb, trueBranch)._bid).append("\n");
+        }
+        else if (bb._successors.size() == 1)
+            sb.append("\t; goto L").append(bb._successors.get(0)._bid).append("\n");
+        for (BasicBlock succ: bb._successors) {
+            dumpNodesInBlock(sb, succ, visited);
+        }
+        return sb;
+    }
 
 }
