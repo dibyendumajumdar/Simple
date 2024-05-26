@@ -6,7 +6,6 @@ import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.type.Type;
 
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
