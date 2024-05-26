@@ -142,7 +142,7 @@ public class GCM {
             BasicBlock inb = control(in);
             if (b == null)
                 b = inb;
-            else if (b._domDepth < inb._domDepth)
+            else if (b._domDepth > inb._domDepth)
                 b = inb;
         }
         assert b != null;
@@ -231,9 +231,9 @@ public class GCM {
      */
     private BasicBlock findLCA(BasicBlock a, BasicBlock b) {
         if (a == null) return  b;
-        while (a._domDepth < b._domDepth)
+        while (a._domDepth > b._domDepth)
             a = a._idom;
-        while (b._domDepth < a._domDepth)
+        while (b._domDepth > a._domDepth)
             b = b._idom;
         while (a != b) {
             a = a._idom;

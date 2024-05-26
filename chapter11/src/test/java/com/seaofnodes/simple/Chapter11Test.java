@@ -35,6 +35,29 @@ public class Chapter11Test {
         GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
     }
 
+    // Bug cause infinite loop in findLCA
+    @Test
+    public void testLCABug() {
+        Parser parser = new Parser ("""
+int i=1;
+while(arg < 10) {
+    arg = arg + 1;
+    if (arg == 5) i=2;
+}
+return i;
+                """
+        );
+        StopNode stop = parser.parse(true).iterate(true);
+//        var eval = new Evaluator(stop);
+//        assertEquals(Long.valueOf(10), eval.evaluate(0, 100));
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
+        DominatorTree tree = new DominatorTree(cfg._entry);
+        System.out.println(tree.generateDotOutput());
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+    }
+
     @Test
     public void testEndlessLoop() {
         Parser parser = new Parser ("""
