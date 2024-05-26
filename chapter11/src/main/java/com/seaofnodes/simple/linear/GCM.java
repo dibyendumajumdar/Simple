@@ -142,6 +142,8 @@ public class GCM {
             BasicBlock inb = control(in);
             if (b == null)
                 b = inb;
+            // Note that dom depth is reverse of
+            // the GCM paper
             else if (b._domDepth > inb._domDepth)
                 b = inb;
         }
@@ -231,6 +233,8 @@ public class GCM {
      */
     private BasicBlock findLCA(BasicBlock a, BasicBlock b) {
         if (a == null) return  b;
+        // Note that dom depth is reverse of
+        // the GCM paper
         while (a._domDepth > b._domDepth)
             a = a._idom;
         while (b._domDepth > a._domDepth)
@@ -243,12 +247,35 @@ public class GCM {
     }
 
     /**
-     * Order instructions by RPO within a block
+     * Local schedule inside the BB
+     * We do RPO except that entry to BB appears first,
+     * phis appear after that, followed by nodes other than exit,
+     * and then exit.
      */
     private void localSchedule(List<BasicBlock> blocks) {
-        for (BasicBlock bb: blocks)
-            bb.reorderInstructionsByRPO();
+        for (BasicBlock bb: blocks) {
+            List<Node> nodes = bb.reorderInstructionsByRPO();
+            List<Node> newSchedule = new ArrayList<>();
+            newSchedule.add(bb._start); // Local entry node
+            for (Node n: nodes) {       // add phis
+                if (n == bb._start) continue;
+                if (n instanceof PhiNode)
+                    newSchedule.add(n);
+            }
+            for (Node n: nodes) {       // Add rest except local exit
+                if (n == bb._start) continue;
+                if (n == bb._end) continue;
+                if (n instanceof PhiNode) continue;
+                newSchedule.add(n);
+            }
+            // Add local exit
+            if (bb._start != bb._end)
+                newSchedule.add(bb._end);
+            bb._schedule = newSchedule;
+        }
     }
+
+    ////////////////////////// Utilities for printing out the schedule
 
     private void dumpSchedule(BasicBlock entry)
     {
