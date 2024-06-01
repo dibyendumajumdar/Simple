@@ -62,4 +62,15 @@ public class LoadNode extends MemOpNode {
 
         return null;
     }
+
+    @Override
+    public void addAntiDeps() {
+        // Look at users of our Memory Input
+        for (Node n : mem()._outputs) {
+            if (n instanceof StoreNode storeNode && storeNode._field._alias == this._field._alias) {
+                if (Utils.find(_outputs, storeNode) != -1) continue; // Already a dependency
+                storeNode.addDef(this);
+            }
+        }
+    }
 }

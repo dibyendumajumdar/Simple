@@ -638,4 +638,5 @@ public abstract class Node {
         return null;
     }
 
+    public void addAntiDeps() {}
 }

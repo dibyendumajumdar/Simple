@@ -161,6 +161,8 @@ public class GCM {
         schedulePinnedNodes(instructions, entry, visited);
         for (Node n: instructions)
             scheduleNodeEarly(n, visited);
+        for (Node n: instructions)
+            n.addAntiDeps();
     }
 
 
