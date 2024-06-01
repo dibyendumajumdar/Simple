@@ -116,6 +116,9 @@ public class DominatorTree {
         n._rpo = _rpostorder--;
     }
 
+    /**
+     * Reverse post order gives a topological sort order
+     */
     private void sortBlocksByRPO() {
         _blocks.sort(Comparator.comparingInt(n -> n._rpo));
     }

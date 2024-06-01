@@ -34,7 +34,8 @@ public class CFGBuilder {
     public BasicBlock _exit;
 
     /**
-     * All Nodes in the input SoN graph
+     * All Nodes in the input SoN graph;
+     * sorted in topological order using RPO
      */
     public List<Node> _allInstructions = new ArrayList<>();
 
@@ -67,6 +68,7 @@ public class CFGBuilder {
     private void getAllInstructionsRPO() {
         // Find all instructions using a post order walk,
         // Note we prepend so that the final order is reverse post order
+        // this also is a topological sort order
         postOrderWalk(_start, (n) -> _allInstructions.add(0, n), new BitSet());
         // assign rpo numbers so that we can easily sort later on
         int rpo = 1;
@@ -104,7 +106,9 @@ public class CFGBuilder {
     // if (arg) while(1) {}
     // return 0;
     private void processInfiniteLoops() {
-        var nodes = getNodesInRPO(_start).reversed();
+        // We visit the nodes bottom up
+        // where nodes are arranged in RPO (topological order)
+        var nodes = getCFGNodesRPO(_start).reversed();
         for (Node r : nodes) {
             // Regions start basic blocks, so if we never saw this
             // region then there is no basic block yet
@@ -126,13 +130,15 @@ public class CFGBuilder {
 
     /**
      * Creates a reverse post order list of CFG nodes
+     * (topological order)
      *
      * @param root The starting CFG node, typically START
      */
-    public static List<Node> getNodesInRPO(Node root) {
+    public static List<Node> getCFGNodesRPO(Node root) {
         List<Node> nodes = new ArrayList<>();
         // Note below that we prepend each entry - this is essentially mimicking a stack
         // so the list we get back is reverse post order
+        // RPO also gives us a topological order
         postOrderWalk(root, (n) -> {if (n.isCFG()) nodes.add(0,n);}, new BitSet());
         return nodes;
     }
