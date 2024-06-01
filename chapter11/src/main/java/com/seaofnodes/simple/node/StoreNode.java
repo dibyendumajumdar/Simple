@@ -68,4 +68,13 @@ public class StoreNode extends MemOpNode {
         return false;
     }
 
+    /**
+     * Avoid GVN of Stores because this causes Stores to be moved
+     * incorrectly during scheduling. An alternative approach is to add a
+     * control dependency.
+     */
+    @Override
+    boolean eq(Node n) {
+        return super.eq(n) && _nid == n._nid;
+    }
 }

@@ -94,6 +94,33 @@ return i;
         GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
     }
 
+    // Issue is that stores don't have control anchor so
+    // here the store is moved out of the if branch which is
+    // incorrect
+    // For now the solution is that Stores cannot GVN
+    @Test
+    public void testStoreSchedulingFix() {
+        Parser parser = new Parser(
+                """
+struct S { int f; }
+S s = new S;
+if (arg == 0) {
+    s.f = 1;
+} else if (arg+1 == 0) {
+    s.f = 1;
+}
+return s;
+                        """);
+        StopNode stop = parser.parse(true).iterate(true);
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
+        DominatorTree tree = new DominatorTree(cfg._entry);
+        System.out.println(tree.generateDotOutput());
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+    }
+
+
     @Test
     public void testPrimeNumberGen() {
         Parser parser = new Parser(

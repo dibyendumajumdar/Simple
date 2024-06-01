@@ -306,16 +306,19 @@ public class GCM {
         visited.set(bb._bid);
         sb.append("L" + bb._bid + ":\n");
         for (Node n: bb._schedule) {
+            if (n instanceof IfNode
+                    || !n.isCFG())
+                sb.append("\t// ").append(n).append('\n');
             sb.append("\t");
             IRPrinter._printLineLlvmFormat(n, sb);
         }
         if (bb._successors.size() == 2) {
             BasicBlock trueBranch = trueBranch(bb);
-            sb.append("\t; if true goto L").append(trueBranch._bid).append(" else goto L")
+            sb.append("\t// if true goto L").append(trueBranch._bid).append(" else goto L")
                     .append(falseBranch(bb, trueBranch)._bid).append("\n");
         }
         else if (bb._successors.size() == 1)
-            sb.append("\t; goto L").append(bb._successors.get(0)._bid).append("\n");
+            sb.append("\t// goto L").append(bb._successors.get(0)._bid).append("\n");
         for (BasicBlock succ: bb._successors) {
             dumpNodesInBlock(sb, succ, visited);
         }
