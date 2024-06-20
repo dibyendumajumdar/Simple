@@ -9,13 +9,14 @@ import com.seaofnodes.simple.type.TypeMemPtr;
  */
 abstract class MemOpNode extends Node {
 
-    protected Field _field;
+    public Field _field;
 
-    public MemOpNode(Field field, Node memSlice, Node memPtr, Node value) {
-        super(null, memSlice, memPtr, value);
+    public MemOpNode(Node ctrl, Field field, Node memSlice, Node memPtr, Node value) {
+        super(ctrl, memSlice, memPtr, value);
         this._field = field;
     }
 
+    public Node ctrl() { return in(0); }
     public Node mem() { return in(1); }
     public Node ptr() { return in(2); }
 

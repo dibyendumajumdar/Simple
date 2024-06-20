@@ -589,7 +589,7 @@ public class Parser {
         Node n = new NewNode(TypeMemPtr.make(obj), ctrl()).peephole().keep();
         Node initValue = new ConstantNode(TypeInteger.constant(0)).peephole();
         for (Field field: obj._fields) {
-            memAlias(field, new StoreNode(field, memAlias(field), n, initValue).peephole());
+            memAlias(field, new StoreNode(ctrl(), field, memAlias(field), n, initValue).peephole());
         }
         return n.unkeep();
     }
@@ -625,7 +625,7 @@ public class Parser {
             if( peek('=') ) _lexer._position--;
             else {
                 Node val = parseExpression();
-                memAlias(field, new StoreNode(field, memAlias(field), expr, val).peephole());
+                memAlias(field, new StoreNode(ctrl(), field, memAlias(field), expr, val).peephole());
                 return expr;        // "obj.a = expr" returns the expression while updating memory
             }
         }

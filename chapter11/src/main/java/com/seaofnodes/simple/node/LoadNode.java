@@ -20,7 +20,7 @@ public class LoadNode extends MemOpNode {
      * @param memPtr The ptr to the struct from where we load a field
      */
     public LoadNode(Field field, Node memSlice, Node memPtr) {
-        super(field, memSlice, memPtr, null);
+        super(null, field, memSlice, memPtr, null);
     }
 
     @Override

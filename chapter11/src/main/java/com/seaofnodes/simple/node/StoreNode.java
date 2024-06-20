@@ -16,8 +16,8 @@ public class StoreNode extends MemOpNode {
      * @param memPtr The ptr to the struct where we will store a value
      * @param value Value to be stored
      */
-    public StoreNode(Field field, Node memSlice, Node memPtr, Node value) {
-        super(field, memSlice, memPtr, value);
+    public StoreNode(Node ctrl, Field field, Node memSlice, Node memPtr, Node value) {
+        super(ctrl, field, memSlice, memPtr, value);
     }
 
     @Override
