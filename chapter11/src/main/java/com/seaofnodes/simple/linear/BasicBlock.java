@@ -62,6 +62,12 @@ public class BasicBlock {
      */
     public List<Node> _schedule = new ArrayList<>();
 
+    /*
+     * Temp use - to track the path taken by a Load
+     * instruction from the LCA to the early BB
+     */
+    public int _load_nid;
+
     public BasicBlock(int bid, Node start, Node end) {
         _bid = bid;
         _start = start;
@@ -108,6 +114,11 @@ public class BasicBlock {
     public List<Node> reorderInstructionsByRPO() {
         _schedule.sort(Comparator.comparingInt(n->n._rpo));
         return _schedule;
+    }
+
+    @Override
+    public String toString() {
+        return uniqueName() + ":" + _start;
     }
 
     //////////////// dominator calculations /////////////////////

@@ -637,6 +637,4 @@ public abstract class Node {
     public Node getBlockStart() {
         return null;
     }
-
-    public void addAntiDeps() {}
 }

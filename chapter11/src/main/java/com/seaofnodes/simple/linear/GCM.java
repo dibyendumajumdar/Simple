@@ -2,6 +2,7 @@ package com.seaofnodes.simple.linear;
 
 import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.node.*;
+import com.seaofnodes.simple.type.TypeMem;
 
 import java.util.*;
 
@@ -148,6 +149,7 @@ public class GCM {
                 b = inb;
         }
         assert b != null;
+        //System.out.println("Setting early for node " + n._nid + "(" + n + ") to " + b);
         control(n, b);
     }
 
@@ -161,8 +163,6 @@ public class GCM {
         schedulePinnedNodes(instructions, entry, visited);
         for (Node n: instructions)
             scheduleNodeEarly(n, visited);
-        for (Node n: instructions)
-            n.addAntiDeps();
     }
 
 
@@ -173,12 +173,7 @@ public class GCM {
     {
         BitSet visited = new BitSet();
         for (Node n: instructions) {
-            if (pinned(n)) {
-                visited.set(n._nid);
-                for (Node use : n._outputs) {
-                    scheduleNodeLate(use, visited);
-                }
-            }
+            scheduleNodeLate(n, visited);
         }
         for (Node n: instructions) {
             if (control(n) == null)
@@ -197,6 +192,17 @@ public class GCM {
         if (visited.get(n._nid))
             return;
         visited.set(n._nid);
+        // Walk Stores before Loads, so we can get the anti-deps right
+        // This is not in the GCM paper
+        for (Node use: n._outputs) {
+            if ( use != null && use._type instanceof TypeMem )
+                scheduleNodeLate(use, visited);
+        }
+        // Walk the rest
+        for (Node use: n._outputs) {
+            if (use != null)
+                scheduleNodeLate(use, visited);
+        }
         if (pinned(n) || n.nOuts() == 0 || n.isCFG()) // Not mentioned in paper, CFG nodes are not movable either
             return;
         BasicBlock lca = null;
@@ -205,21 +211,40 @@ public class GCM {
         // We need to find the lowest common ancestor (LCA)
         // in the dominator tree of all an instruction’s uses.
         for (Node use: n._outputs) {
-            scheduleNodeLate(use, visited);
-            BasicBlock useBlock = control(use);
-            if (use instanceof PhiNode) {
-                int j = 0;
-                for (; j < use.nIns(); j++) {
-                    if (use.in(j) == n)
-                        break;
-                }
-                assert use.in(j) == n;
-                assert j >= 1;
-                useBlock = useBlock._predecessors.get(j-1); // adjust for the fact that phi's first input is the region
-                assert useBlock != null;
-            }
-            lca = findLCA(lca, useBlock);
+            BasicBlock bb = getUseBlock(n, use);
+            lca = findLCA(lca, bb);
         }
+        // Loads may need anti-dependencies
+        // This is not in the GCM paper
+        BasicBlock early = control(n);
+        if (n instanceof LoadNode load) {
+            // Trace the Load's path up DOM Tree from LCA to early BB
+            // and record the trace in the BB
+            for (BasicBlock bb = lca; ; bb = bb._idom) {
+                bb._load_nid = load._nid;
+                if (bb == early) break;
+            }
+            for (Node mem : load.mem()._outputs) {
+                switch (mem) {
+                    case StoreNode store:
+                        lca = addAntiDeps(load, control(store), lca, store);
+                        break;
+                    case PhiNode phi:
+                        // No anti-dep edges but may raise the LCA.
+                        for (int i = 1; i < phi.nIns(); i++)
+                            if (phi.in(i) == load.mem())
+                                lca = addAntiDeps(load, phiPredecessorBlock(phi, i), lca, null);
+                        break;
+                    case LoadNode ld:
+                        break; // Loads do not cause anti-deps on other loads
+                    case ReturnNode ret:
+                        break; // Load must already be ahead of Return
+                    default:
+                        throw new UnsupportedOperationException();
+                }
+            }
+        }
+
         // Choose the block that is in the shallowest loop nest possible
         BasicBlock best = lca;
         while (lca != control(n)) {
@@ -227,7 +252,45 @@ public class GCM {
                 best = lca;
             lca = lca._idom;
         }
+
+        //System.out.println("Setting late for node " + n._nid + "(" + n + ") to " + best);
         control(n, best);
+    }
+
+    private BasicBlock addAntiDeps(LoadNode load, BasicBlock storeBB, BasicBlock lca, Node store ) {
+        // Walk store blocks "reach" from its scheduled location to its earliest
+        for (BasicBlock defBB = control(load.mem()); ; storeBB = storeBB._idom) {
+            // Store and Load overlap, need anti-dependence
+            if (storeBB._load_nid == load._nid) {
+                BasicBlock oldlca = lca;
+                lca = findLCA(lca, storeBB); // Raise Loads LCA
+                if (oldlca != lca && store != null) // And if something moved,
+                    store.addDef(load);   // Add anti-dep as well
+            }
+            if (storeBB == defBB) break;
+        }
+        return lca;
+    }
+
+    // Block of use.  Normally from late schedule, except for Phis, which go
+    // to the matching Region input.
+    private BasicBlock getUseBlock(Node n, Node use) {
+        BasicBlock useBlock = control(use);
+        if (use instanceof PhiNode) {
+            int j = 0;
+            for (; j < use.nIns(); j++) {
+                if (use.in(j) == n) break;
+            }
+            assert use.in(j) == n;
+            assert j >= 1;
+            useBlock = useBlock._predecessors.get(j - 1); // adjust for the fact that phi's first input is the region
+            assert useBlock != null;
+        }
+        return useBlock;
+    }
+
+    private BasicBlock phiPredecessorBlock(PhiNode use, int j) {
+        return control(use)._predecessors.get(j - 1);
     }
 
     /**

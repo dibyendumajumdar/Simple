@@ -200,6 +200,33 @@ return i;
         GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
     }
 
+    @Test
+    public void testAntiDeps2() {
+        Parser parser = new Parser(
+                """
+struct S { int f; }
+S v = new S;
+S t = new S;
+int i = 0;
+if (arg) {
+    if (arg+1) v = t;
+    i = v.f;
+} else {
+    v.f = 2;
+}
+return i;
+                """);
+        //Node._disablePeephole = true;
+        StopNode stop = parser.parse(true).iterate(true);
+        var eval = new Evaluator(stop);
+//        assertEquals(Long.valueOf(2), eval.evaluate(1, 100));
+        CFGBuilder cfg = new CFGBuilder();
+        cfg.buildCFG(Parser.START, stop);
+        System.out.println(cfg.generateDotOutput(cfg._basicBlocks));
+        DominatorTree tree = new DominatorTree(cfg._entry);
+        System.out.println(tree.generateDotOutput());
+        GCM gcm = new GCM(cfg._entry, cfg._exit, cfg._basicBlocks, cfg._allInstructions);
+    }
 
     // Example of loop from 1994 paper
     // strength reduction
