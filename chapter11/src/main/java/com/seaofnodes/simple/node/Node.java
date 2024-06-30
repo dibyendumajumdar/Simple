@@ -80,7 +80,11 @@ public abstract class Node implements OutNode {
     }
 
     // Graphical label, e.g. "+" or "Region" or "=="
-    public String glabel() { return label(); }
+    public String glabel() {
+        if (isCFG())
+            return label() + " (" + _nid + ")";
+        return label();
+    }
 
 
     // ------------------------------------------------------------------------
