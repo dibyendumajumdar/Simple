@@ -1,5 +1,6 @@
 package com.seaofnodes.simple.evaluator;
 
+import com.seaofnodes.simple.IRPrinter;
 import com.seaofnodes.simple.Utils;
 import com.seaofnodes.simple.node.*;
 import com.seaofnodes.simple.type.Type;
@@ -578,6 +579,34 @@ public class Scheduler {
         return blocks.get(start);
     }
 
+
+    private static void dumpSchedule(Block start)
+    {
+        System.out.println(dumpNodesInBlock(new StringBuilder(), start, new HashSet<>()).toString());
+    }
+
+    private static StringBuilder dumpNodesInBlock(StringBuilder sb, Block bb, Set<Block> visited)
+    {
+        if (visited.contains(bb))
+            return sb;
+        visited.add(bb);
+        sb.append("L" + System.identityHashCode(bb) + ":");
+        sb.append(" succ(");
+        for (Block next: bb.next)
+            sb.append(System.identityHashCode(next)).append(",");
+        sb.append(")\n");
+        for (Node n: bb.nodes) {
+            sb.append("\t");
+            IRPrinter._printLineLlvmFormat(n, sb);
+        }
+        sb.append("\t");
+        IRPrinter._printLineLlvmFormat(bb.exit, sb);
+        for (Block succ: bb.next) {
+            dumpNodesInBlock(sb, succ, visited);
+        }
+        return sb;
+    }
+
     /**
      * Create a schedule for the program reachable from start.
      * @param start The start node
@@ -588,7 +617,9 @@ public class Scheduler {
         scheduler.doMarkAlive(start);
         scheduler.doBuildCTF(start);
         scheduler.doSchedule();
-        return scheduler.build(start);
+        Block startBlock = scheduler.build(start);
+        dumpSchedule(startBlock);
+        return startBlock;
     }
 
 }
