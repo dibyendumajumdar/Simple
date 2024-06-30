@@ -621,4 +621,6 @@ public abstract class Node implements OutNode {
     public Node find(int nid) {
         return walk( n -> n._nid==nid ? n : null );
     }
+
+    public int _rpo;
 }
