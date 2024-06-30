@@ -21,7 +21,8 @@ public class CFGBuilder {
     /** all the basic blocks */
     public final ArrayList<BasicBlock> _basicBlocks = new ArrayList<>();
 
-    Node _start;
+    StartNode _start;
+    StopNode _stop;
 
     /**
      * Entry block
@@ -60,9 +61,10 @@ public class CFGBuilder {
      */
     public void buildCFG(StartNode startNode, StopNode stopNode) {
         _start = startNode;
+        _stop = stopNode;
         getAllInstructionsRPO();
+        fixupInfiniteLoops();
         buildCFG(stopNode);
-        processInfiniteLoops();
     }
 
     private void getAllInstructionsRPO() {
@@ -71,6 +73,20 @@ public class CFGBuilder {
         // this also is a topological sort order
         postOrderWalk(_start, (n) -> _allInstructions.add(0, n), new BitSet());
         // assign rpo numbers so that we can easily sort later on
+        assignRPO();
+        // fix infinite loops
+        fixupInfiniteLoops();
+    }
+
+    // fix infinite loops
+    private void fixupInfiniteLoops() {
+        for (Node n: _allInstructions)
+            if (n instanceof LoopNode loop)
+                loop.forceExit(_stop);
+    }
+
+    // assign rpo numbers so that we can easily sort later on
+    private void assignRPO() {
         int rpo = 1;
         for (Node n: _allInstructions)
             n._rpo = rpo++;
@@ -101,21 +117,21 @@ public class CFGBuilder {
         return bb;
     }
 
-    // SoN thesis says we find basic blocks bottom up
-    // but this has an issue that infinite loops can be unreachable, e.g.
-    // if (arg) while(1) {}
-    // return 0;
-    private void processInfiniteLoops() {
-        // We visit the nodes bottom up
-        // where nodes are arranged in RPO (topological order)
-        var nodes = getCFGNodesRPO(_start).reversed();
-        for (Node r : nodes) {
-            // Regions start basic blocks, so if we never saw this
-            // region then there is no basic block yet
-            if (r instanceof RegionNode && getBasicBlock(r) == null)
-                buildCFG(r);
-        }
-    }
+//    // SoN thesis says we find basic blocks bottom up
+//    // but this has an issue that infinite loops can be unreachable, e.g.
+//    // if (arg) while(1) {}
+//    // return 0;
+//    private void processInfiniteLoops() {
+//        // We visit the nodes bottom up
+//        // where nodes are arranged in RPO (topological order)
+//        var nodes = getCFGNodesRPO(_start).reversed();
+//        for (Node r : nodes) {
+//            // Regions start basic blocks, so if we never saw this
+//            // region then there is no basic block yet
+//            if (r instanceof RegionNode && getBasicBlock(r) == null)
+//                buildCFG(r);
+//        }
+//    }
 
     static void postOrderWalk(Node n, Consumer<Node> consumer, BitSet visited) {
         visited.set(n._nid);
@@ -128,20 +144,20 @@ public class CFGBuilder {
         consumer.accept(n);
     }
 
-    /**
-     * Creates a reverse post order list of CFG nodes
-     * (topological order)
-     *
-     * @param root The starting CFG node, typically START
-     */
-    public static List<Node> getCFGNodesRPO(Node root) {
-        List<Node> nodes = new ArrayList<>();
-        // Note below that we prepend each entry - this is essentially mimicking a stack
-        // so the list we get back is reverse post order
-        // RPO also gives us a topological order
-        postOrderWalk(root, (n) -> {if (n.isCFG()) nodes.add(0,n);}, new BitSet());
-        return nodes;
-    }
+//    /**
+//     * Creates a reverse post order list of CFG nodes
+//     * (topological order)
+//     *
+//     * @param root The starting CFG node, typically START
+//     */
+//    public static List<Node> getCFGNodesRPO(Node root) {
+//        List<Node> nodes = new ArrayList<>();
+//        // Note below that we prepend each entry - this is essentially mimicking a stack
+//        // so the list we get back is reverse post order
+//        // RPO also gives us a topological order
+//        postOrderWalk(root, (n) -> {if (n.isCFG()) nodes.add(0,n);}, new BitSet());
+//        return nodes;
+//    }
 
     public static String generateDotOutput(List<BasicBlock> blocks) {
         StringBuilder sb = new StringBuilder();
